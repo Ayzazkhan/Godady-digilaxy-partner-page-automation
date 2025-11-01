@@ -1,1 +1,13 @@
+- hosts: godaddy
+  gather_facts: no
+  tasks:
+    - name: Copy updated index.html to GoDaddy
+      ansible.builtin.copy:
+        src: "../public_html/{{ item }}/partners/index.html"
+        dest: "/home/godaddyuser/public_html/{{ item }}/partners/index.html"
+      loop:
+        - classhelpusa.com
+        - academichelp.com
+        - onlineclasshelp.com
+        - coursehelp.com
 
