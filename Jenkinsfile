@@ -12,15 +12,6 @@ pipeline {
       }
     }
 
-    stage('Install Dependencies') {
-      steps {
-        sh '''
-          sudo apt update -y
-          sudo apt install -y python3-pip
-          pip3 install paramiko beautifulsoup4 requests
-        '''
-      }
-    }
 
     stage('Inject Partner Block') {
       steps {
