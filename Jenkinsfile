@@ -10,17 +10,23 @@ pipeline {
 
 
 
-    stage('Update all domains') {
+    stage('Process domains') {
       steps {
         script {
-          def domains = ['academiccoursehelp.com']
+          // get domains list from file using python to avoid needing jq/plugin
+          def domainsOutput = sh(script: "python3 - <<'PY'\nimport json\nprint('\\n'.join(list(json.load(open('data/domains.json')).keys())))\nPY", returnStdout: true).trim()
+          def domains = domainsOutput.tokenize('\n')
+          echo "Domains to process: ${domains}"
+
           for (d in domains) {
-            withCredentials([usernamePassword(credentialsId: "ftp-${d}", usernameVariable: 'FTP_USER', passwordVariable: 'FTP_PASS')]) {
+            def credId = "ftp-${d}"
+            echo "Processing ${d} with credential id ${credId}"
+            withCredentials([usernamePassword(credentialsId: credId, usernameVariable: 'FTP_USER', passwordVariable: 'FTP_PASS')]) {
               sh """
                 export CURRENT_DOMAIN=${d}
                 export FTP_USER=${FTP_USER}
-                export FTP_PASS=${FTP_PASS}
-                python3 scripts/sftp_modify_inject.py
+                export FTP_PASS='${FTP_PASS}'
+                python3 scripts/ftp_modify_inject.py
               """
             }
           }
@@ -28,8 +34,9 @@ pipeline {
       }
     }
   }
+
   post {
-    success { echo "All done" }
-    failure { echo "See console for errors" }
+    success { echo "✅ All domains processed" }
+    failure { echo "❌ Some error occurred — check console" }
   }
 }
