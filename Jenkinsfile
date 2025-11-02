@@ -26,7 +26,7 @@ pipeline {
                 export CURRENT_DOMAIN=${d}
                 export FTP_USER=${FTP_USER}
                 export FTP_PASS='${FTP_PASS}'
-                python3 scripts/ftp_modify_inject.py
+                python3 scripts/sftp_modify_inject.py
               """
             }
           }
