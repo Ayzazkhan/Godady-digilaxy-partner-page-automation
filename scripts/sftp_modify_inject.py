@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 import os, json, time
 from datetime import datetime
+from ftplib import FTP, error_perm
 from bs4 import BeautifulSoup
-import paramiko
 import requests
+import io
 
 DOMAINS_FILE = "data/domains.json"
 TEMPLATE_FILE = "templates/partner_block_template.html"
@@ -19,53 +20,53 @@ def inject_into_html(original_html, snippet_html):
     return str(soup)
 
 def handle(domain, host, ftp_user, ftp_pass):
-    print(f"[INFO] Processing {domain} @ {host}")
-    transport = paramiko.Transport((host, 22))
-    transport.connect(username=ftp_user, password=ftp_pass)
-    sftp = paramiko.SFTPClient.from_transport(transport)
+    print(f"[INFO] Connecting to {domain} @ {host} via FTP...")
+    ftp = FTP(host, timeout=15)
+    ftp.login(ftp_user, ftp_pass)
+    print("[OK] FTP login successful")
 
-    remote_file = "index.html"   # because FTP user opens into partners/
+    remote_file = "index.html"  # directly inside /partners/
     ts = datetime.utcnow().strftime("%Y%m%d%H%M%S")
     backup_name = f"index_old_{ts}.html"
 
-    # try backup (rename if exists)
+    # --- Backup existing file ---
     try:
-        sftp.stat(remote_file)
-        sftp.rename(remote_file, backup_name)
+        ftp.rename(remote_file, backup_name)
         print(f"[OK] Remote backup created: {backup_name}")
-    except IOError:
-        print("[INFO] Remote index.html not found — will create new")
+    except error_perm:
+        print("[INFO] index.html not found, creating new file.")
 
-    # try download backup or create scaffold
-    local_tmp = f"/tmp/{domain}_base.html"
+    # --- Download base HTML or create new scaffold ---
+    bio = io.BytesIO()
     try:
-        # if backup exists get it, else try remote (if rename failed)
-        sftp.get(backup_name, local_tmp)
-    except Exception:
+        ftp.retrbinary(f"RETR {backup_name}", bio.write)
+        print("[OK] Downloaded backup for modification")
+    except:
         try:
-            sftp.get(remote_file, local_tmp)
-        except Exception:
-            # create minimal scaffold
-            with open(local_tmp, "w", encoding="utf-8") as f:
-                f.write("<html><body><section id='clients'><div class='row align-center justify-content-center'></div></section></body></html>")
-            print("[INFO] Created local scaffold")
+            bio = io.BytesIO()
+            ftp.retrbinary(f"RETR {remote_file}", bio.write)
+            print("[OK] Downloaded current index.html")
+        except:
+            print("[WARN] No index.html found, creating a new scaffold")
+            scaffold = "<html><body><section id='clients'><div class='row align-center justify-content-center'></div></section></body></html>"
+            bio.write(scaffold.encode())
 
-    with open(local_tmp, "r", encoding="utf-8") as f:
-        base_html = f.read()
+    bio.seek(0)
+    base_html = bio.read().decode("utf-8", errors="ignore")
+
     with open(TEMPLATE_FILE, "r", encoding="utf-8") as f:
         snippet = f.read()
 
     updated_html = inject_into_html(base_html, snippet)
 
-    new_local = f"/tmp/{domain}_new.html"
-    with open(new_local, "w", encoding="utf-8") as f:
-        f.write(updated_html)
+    # --- Upload new file ---
+    updated_bytes = io.BytesIO(updated_html.encode("utf-8"))
+    ftp.storbinary(f"STOR {remote_file}", updated_bytes)
+    print(f"[OK] Uploaded new {remote_file} for {domain}")
 
-    # upload new file
-    sftp.put(new_local, remote_file)
-    print(f"[OK] Uploaded new index.html for {domain}")
+    ftp.quit()
 
-    # optional HTTP check
+    # --- Optional HTTP check ---
     try:
         url = f"https://{domain}/partners/index.html"
         r = requests.get(url, timeout=8)
@@ -73,22 +74,19 @@ def handle(domain, host, ftp_user, ftp_pass):
     except Exception as e:
         print(f"[WARN] HTTP validation failed: {e}")
 
-    sftp.close()
-    transport.close()
-
 def main():
     current = os.environ.get("CURRENT_DOMAIN")
     ftp_user = os.environ.get("FTP_USER")
     ftp_pass = os.environ.get("FTP_PASS")
     if not current or not ftp_user or not ftp_pass:
-        print("Env vars CURRENT_DOMAIN, FTP_USER, FTP_PASS required")
+        print("❌ Env vars CURRENT_DOMAIN, FTP_USER, FTP_PASS required")
         return
 
     with open(DOMAINS_FILE, "r", encoding="utf-8") as f:
         domains = json.load(f)
 
     if current not in domains:
-        print(f"{current} not defined in {DOMAINS_FILE}")
+        print(f"❌ {current} not defined in {DOMAINS_FILE}")
         return
 
     host = domains[current]["host"]
