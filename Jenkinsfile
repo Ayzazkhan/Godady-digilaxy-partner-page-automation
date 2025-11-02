@@ -1,42 +1,35 @@
 pipeline {
   agent any
 
-  environment {
-    CURRENT_DOMAIN = "academiccoursehelp.com"
-  }
-
   stages {
-    stage('Checkout Repository') {
+    stage('Checkout') {
       steps {
-        git branch: 'main', url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git'
+        git credentialsId: 'github-access', url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git', branch: 'main'
       }
     }
 
 
-    stage('Inject Partner Block') {
+
+    stage('Update all domains') {
       steps {
-        withCredentials([usernamePassword(
-          credentialsId: 'ftp-academiccoursehelp.com',
-          usernameVariable: 'FTP_USER',
-          passwordVariable: 'FTP_PASS'
-        )]) {
-          sh '''
-            export CURRENT_DOMAIN=${CURRENT_DOMAIN}
-            export FTP_USER=${FTP_USER}
-            export FTP_PASS=${FTP_PASS}
-            python3 scripts/sftp_modify_inject.py
-          '''
+        script {
+          def domains = ['academiccoursehelp.com']
+          for (d in domains) {
+            withCredentials([usernamePassword(credentialsId: "ftp-${d}", usernameVariable: 'FTP_USER', passwordVariable: 'FTP_PASS')]) {
+              sh """
+                export CURRENT_DOMAIN=${d}
+                export FTP_USER=${FTP_USER}
+                export FTP_PASS=${FTP_PASS}
+                python3 scripts/sftp_modify_inject.py
+              """
+            }
+          }
         }
       }
     }
   }
-
   post {
-    success {
-      echo "✅ Deployment successful for ${env.CURRENT_DOMAIN}"
-    }
-    failure {
-      echo "❌ Deployment failed for ${env.CURRENT_DOMAIN}"
-    }
+    success { echo "All done" }
+    failure { echo "See console for errors" }
   }
 }
