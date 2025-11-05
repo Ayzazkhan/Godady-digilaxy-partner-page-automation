@@ -3,7 +3,8 @@ import os, json, io
 from ftplib import FTP
 from bs4 import BeautifulSoup
 
-DOMAINS_FILE = "duplication/domains.json"
+# Updated path for your domain list file
+DOMAINS_FILE = "duplication/url.json"
 
 def backup_file(ftp, remote_file):
     """Rename current index.html -> rollback.html (fixed name)"""
@@ -81,9 +82,11 @@ def main():
         host = data["host"]
         ftp_user = f"cicd@{domain}"
         ftp_pass = os.environ.get(f"FTP_PASS_{domain.replace('.', '_').upper()}")
+
         if not ftp_pass:
             print(f"[❌] Missing FTP_PASS for {domain}")
             continue
+
         process_domain(domain, host, ftp_user, ftp_pass)
 
 if __name__ == "__main__":
