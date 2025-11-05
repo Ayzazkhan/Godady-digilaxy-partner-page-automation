@@ -2,6 +2,7 @@
 import os, json, io
 from ftplib import FTP
 from bs4 import BeautifulSoup
+from urllib.parse import urlparse
 
 # Updated path for your domain list file
 DOMAINS_FILE = "duplication/urls.json"
