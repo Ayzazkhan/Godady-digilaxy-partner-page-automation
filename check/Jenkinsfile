@@ -1,0 +1,32 @@
+
+pipeline {
+  agent any
+
+  stages {
+    stage('Checkout') {
+      steps {
+        git credentialsId: 'github-access', url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git', branch: 'main'
+      }
+    }
+
+    stage('Run FTP Check Script') {
+      steps {
+        script {
+          sh 'python3 check/scripts/ftp_check.py'
+        }
+      }
+    }
+
+    stage('Archive Report') {
+      steps {
+        archiveArtifacts artifacts: 'check/report.txt', fingerprint: true
+        echo "📄 Report saved as check/report.txt"
+      }
+    }
+  }
+
+  post {
+    success { echo "✅ FTP check completed successfully!" }
+    failure { echo "❌ Something went wrong — check console output." }
+  }
+}
