@@ -4,7 +4,7 @@ from ftplib import FTP
 from bs4 import BeautifulSoup
 
 # Updated path for your domain list file
-DOMAINS_FILE = "duplication/url.json"
+DOMAINS_FILE = "duplication/urls.json"
 
 def backup_file(ftp, remote_file):
     """Rename current index.html -> rollback.html (fixed name)"""
