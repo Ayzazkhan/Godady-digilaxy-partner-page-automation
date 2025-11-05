@@ -8,7 +8,7 @@ def check_ftp(domain):
     except Exception:
         return False
 
-with open("data/domains.txt") as f:
+with open("data/domains.json") as f:
     domains = [line.strip() for line in f if line.strip()]
 
 accessible = []
