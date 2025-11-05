@@ -56,23 +56,25 @@ def process_domain(domain, host, ftp_user, ftp_pass):
 
     ftp = FTP(host, timeout=15)
     ftp.login(ftp_user, ftp_pass)
-    ftp.cwd("partners")
 
-    # Step 1: Backup index.html -> rollback.html
+    # ⚠️ No need to change directory — FTP already opens in /partners
+
+    # Step 1: Backup existing index.html
     backup_file(ftp, "index.html")
 
-    # Step 2: Fetch latest HTML (rollback or index)
+    # Step 2: Fetch rollback.html (or index if rollback missing)
     html = fetch_html(ftp)
 
-    # Step 3: Clean duplicates
+    # Step 3: Remove duplicates
     updated_html = detect_and_remove_duplicates(html)
 
-    # Step 4: Upload updated HTML
+    # Step 4: Upload updated file
     updated_bytes = io.BytesIO(updated_html.encode("utf-8"))
     ftp.storbinary("STOR index.html", updated_bytes)
     print(f"[✅] Uploaded cleaned index.html for {domain}")
 
     ftp.quit()
+
 
 def main():
     with open(DOMAINS_FILE, "r", encoding="utf-8") as f:
