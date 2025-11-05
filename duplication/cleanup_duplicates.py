@@ -81,7 +81,8 @@ def main():
     for domain, data in domains.items():
         host = data["host"]
         ftp_user = f"cicd@{domain}"
-        ftp_pass = os.environ.get(f"FTP_PASS_{domain.replace('.', '_').upper()}")
+        ftp_pass = os.environ.get("FTP_PASS")
+
 
         if not ftp_pass:
             print(f"[❌] Missing FTP_PASS for {domain}")
