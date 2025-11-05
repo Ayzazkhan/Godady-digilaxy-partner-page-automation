@@ -1,0 +1,42 @@
+pipeline {
+  agent any
+
+  stages {
+    stage('Checkout Repository') {
+      steps {
+        git branch: 'main', url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git'
+      }
+    }
+
+    stage('Duplicate Block Cleanup') {
+      steps {
+        script {
+          def domainsOutput = sh(script: "python3 - <<'PY'\nimport json\nprint('\\n'.join(list(json.load(open('duplication/urls.json')).keys())))\nPY", returnStdout: true).trim()
+          def domains = domainsOutput.tokenize('\n')
+
+          for (d in domains) {
+            def credId = "ftp-${d}"
+            echo "Processing ${d} with credential id ${credId}"
+            withCredentials([usernamePassword(credentialsId: credId, usernameVariable: 'FTP_USER', passwordVariable: 'FTP_PASS')]) {
+              sh """
+                export CURRENT_DOMAIN=${d}
+                export FTP_USER=${FTP_USER}
+                export FTP_PASS='${FTP_PASS}'
+                python3 duplication/remove_duplicate_block.py
+              """
+            }
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "✅ Duplication cleanup completed for all domains"
+    }
+    failure {
+      echo "❌ Duplication cleanup failed"
+    }
+  }
+}
