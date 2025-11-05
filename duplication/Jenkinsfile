@@ -12,7 +12,7 @@ pipeline {
       steps {
         script {
           // Get domains dynamically from duplication/url.json
-          def domainsOutput = sh(script: "python3 - <<'PY'\nimport json\nprint('\\n'.join(list(json.load(open('duplication/url.json')).keys())))\nPY", returnStdout: true).trim()
+          def domainsOutput = sh(script: "python3 - <<'PY'\nimport json\nprint('\\n'.join(list(json.load(open('duplication/urls.json')).keys())))\nPY", returnStdout: true).trim()
           def domains = domainsOutput.tokenize('\n')
           echo "Domains to process: ${domains}"
 
