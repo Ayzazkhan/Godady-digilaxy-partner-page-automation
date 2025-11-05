@@ -2,18 +2,39 @@ pipeline {
   agent any
 
   stages {
-    stage('Remove Duplicate Partner Blocks') {
+    stage('Checkout') {
       steps {
-        checkout([$class: 'GitSCM', branches: [[name: 'main']],
-                  userRemoteConfigs: [[url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git']]])
+        git credentialsId: 'github-access', url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git', branch: 'main'
+      }
+    }
 
-        withCredentials([
-          string(credentialsId: 'ftp-academiccoursehelp.com', variable: 'FTP_PASS_ACADEMICCOURSEHELP_COM'),
-          string(credentialsId: 'ftp-assignmenteducators.co.uk', variable: 'FTP_PASS_ASSIGNMENTEDUCATORS_CO_UK')
-        ]) {
-          sh 'python3 duplication/cleanup_duplicates.py'
+    stage('Remove Duplicates') {
+      steps {
+        script {
+          // get domains list dynamically
+          def domainsOutput = sh(script: "python3 - <<'PY'\nimport json\nprint('\\n'.join(list(json.load(open('data/domains.json')).keys())))\nPY", returnStdout: true).trim()
+          def domains = domainsOutput.tokenize('\n')
+          echo "Domains to process: ${domains}"
+
+          for (d in domains) {
+            def credId = "ftp-${d}"
+            echo "Processing ${d} with credential id ${credId}"
+            withCredentials([usernamePassword(credentialsId: credId, usernameVariable: 'FTP_USER', passwordVariable: 'FTP_PASS')]) {
+              sh """
+                export CURRENT_DOMAIN=${d}
+                export FTP_USER=${FTP_USER}
+                export FTP_PASS='${FTP_PASS}'
+                python3 duplication/cleanup_duplicates.py
+              """
+            }
+          }
         }
       }
     }
+  }
+
+  post {
+    success { echo "✅ All duplicate blocks cleaned successfully" }
+    failure { echo "❌ Duplication cleanup failed — check logs" }
   }
 }
