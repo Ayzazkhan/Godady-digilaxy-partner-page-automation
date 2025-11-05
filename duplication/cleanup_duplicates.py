@@ -32,8 +32,9 @@ def fetch_html(ftp, remote_file="rollback.html"):
     return bio.read().decode("utf-8", errors="ignore")
 
 def detect_and_remove_duplicates(html):
+    """Remove duplicate partner blocks intelligently based on domain (ignore protocol, www, and path)"""
     soup = BeautifulSoup(html, "html.parser")
-    seen_links = set()
+    seen_domains = set()
     removed = 0
 
     wrappers = soup.find_all("div", class_="client-wrapper")
@@ -43,15 +44,33 @@ def detect_and_remove_duplicates(html):
         a_tag = wrapper.find("a", href=True)
         if a_tag:
             href = a_tag["href"].strip()
-            print(f"[DEBUG] Found link: {href}")
-            if href in seen_links:
+
+            # Normalize and parse the domain
+            parsed = urlparse(href)
+            domain = parsed.netloc.lower().replace("www.", "")
+
+            # If URL doesn't have scheme (e.g., starts with // or relative path)
+            if not domain and href:
+                # try extracting domain manually
+                if "//" in href:
+                    domain = href.split("//")[-1].split("/")[0].replace("www.", "")
+                else:
+                    domain = href.split("/")[0].replace("www.", "")
+
+            # Skip empty domains
+            if not domain:
+                continue
+
+            print(f"[DEBUG] Found domain: {domain}")
+
+            if domain in seen_domains:
                 parent_block = wrapper.find_parent("div", class_=lambda c: c and "col-" in c)
                 (parent_block or wrapper).decompose()
                 removed += 1
             else:
-                seen_links.add(href)
+                seen_domains.add(domain)
 
-    print(f"[INFO] Removed {removed} duplicate blocks")
+    print(f"[INFO] Removed {removed} duplicate partner blocks (by domain, ignoring protocol)")
     return str(soup)
 
 
