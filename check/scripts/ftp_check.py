@@ -1,52 +1,68 @@
+#!/usr/bin/env python3
 import ftplib
-import os
 import json
+import socket
+import traceback
 
-# ✅ Make sure 'check' folder exists
-os.makedirs("check", exist_ok=True)
+DOMAINS_FILE = "data/domains.json"
 
-# ✅ Load domains from JSON
-with open("data/domains.json") as f:
-    data = json.load(f)
-    domains = list(data.keys())
-
-accessible = []
-inaccessible = []
-
-def check_ftp(domain):
+def check_ftp(domain, host):
     try:
-        ftp = ftplib.FTP(domain, timeout=5)
+        ftp = ftplib.FTP(host, timeout=8)
         ftp.quit()
-        return True
-    except Exception:
-        return False
+        return True, "Connection successful"
+    except socket.gaierror:
+        return False, "Invalid hostname or DNS resolution failed"
+    except ftplib.error_perm as e:
+        return False, f"Permission error: {e}"
+    except ftplib.error_temp as e:
+        return False, f"Temporary FTP error: {e}"
+    except ftplib.all_errors as e:
+        return False, f"FTP error: {e}"
+    except Exception as e:
+        return False, f"Unknown error: {e}"
 
-# ✅ Process each domain
-for d in domains:
-    print(f"Checking FTP access for: {d}")
-    if check_ftp(d):
-        accessible.append(d)
-    else:
-        inaccessible.append(d)
+def main():
+    with open(DOMAINS_FILE, "r", encoding="utf-8") as f:
+        domains_data = json.load(f)
 
-# ✅ Create report.txt
-with open("check/report.txt", "w") as report:
-    report.write("✅ Accessible Domains:\n")
+    accessible = []
+    failed = {}
+
+    print("🔍 Starting FTP connectivity check...\n")
+
+    for domain, info in domains_data.items():
+        host = info.get("host", domain)
+        print(f"➡️ Checking FTP for: {domain} ({host})")
+
+        ok, msg = check_ftp(domain, host)
+        if ok:
+            print(f"✅ Success: {msg}\n")
+            accessible.append(domain)
+        else:
+            print(f"❌ Failed: {msg}\n")
+            failed[domain] = msg
+
+    # Print summary
+    print("\n==================== SUMMARY ====================")
+    print(f"✅ Accessible Domains: {len(accessible)}")
     for d in accessible:
-        report.write(f"{d}\n")
-    report.write("\n❌ Inaccessible Domains:\n")
-    for d in inaccessible:
-        report.write(f"{d}\n")
+        print(f"   - {d}")
 
-# ✅ Print summary in console
-print("\n📄 Report generated: check/report.txt\n")
+    print(f"\n❌ Inaccessible Domains: {len(failed)}")
+    for d, reason in failed.items():
+        print(f"   - {d} → {reason}")
 
-if inaccessible:
-    print("❌ FTP FAILED for the following domains:")
-    for domain in inaccessible:
-        print(f" - {domain}")
-else:
-    print("✅ All domains are accessible via FTP!")
+    # Save to report.txt (optional)
+    with open("check/report.txt", "w") as r:
+        r.write("✅ Accessible Domains:\n")
+        for d in accessible:
+            r.write(f"{d}\n")
+        r.write("\n❌ Inaccessible Domains:\n")
+        for d, reason in failed.items():
+            r.write(f"{d} → {reason}\n")
 
-# ✅ Show totals
-print(f"\nSummary: {len(accessible)} accessible | {len(inaccessible)} failed")
+    print("\n📄 Report generated at: check/report.txt")
+
+if __name__ == "__main__":
+    main()
