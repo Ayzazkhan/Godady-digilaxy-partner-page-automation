@@ -2,10 +2,10 @@ import ftplib
 import os
 import json
 
-# Make sure report folder exists
+# ✅ Make sure 'check' folder exists
 os.makedirs("check", exist_ok=True)
 
-# Load domains (JSON format)
+# ✅ Load domains from JSON
 with open("data/domains.json") as f:
     data = json.load(f)
     domains = list(data.keys())
@@ -21,6 +21,7 @@ def check_ftp(domain):
     except Exception:
         return False
 
+# ✅ Process each domain
 for d in domains:
     print(f"Checking FTP access for: {d}")
     if check_ftp(d):
@@ -28,21 +29,24 @@ for d in domains:
     else:
         inaccessible.append(d)
 
-# Write report file
-with open("check/report.txt", "w") as r:
-    r.write("✅ Accessible Domains:\n")
+# ✅ Create report.txt
+with open("check/report.txt", "w") as report:
+    report.write("✅ Accessible Domains:\n")
     for d in accessible:
-        r.write(f"{d}\n")
-    r.write("\n❌ Inaccessible Domains:\n")
+        report.write(f"{d}\n")
+    report.write("\n❌ Inaccessible Domains:\n")
     for d in inaccessible:
-        r.write(f"{d}\n")
+        report.write(f"{d}\n")
 
-# Print in console for Jenkins visibility
-print("\n📄 Report generated: check/report.txt")
+# ✅ Print summary in console
+print("\n📄 Report generated: check/report.txt\n")
 
 if inaccessible:
-    print("\n❌ FTP login failed for these domains:")
-    for d in inaccessible:
-        print(f" - {d}")
+    print("❌ FTP FAILED for the following domains:")
+    for domain in inaccessible:
+        print(f" - {domain}")
 else:
-    print("\n✅ All domains are accessible via FTP!")
+    print("✅ All domains are accessible via FTP!")
+
+# ✅ Show totals
+print(f"\nSummary: {len(accessible)} accessible | {len(inaccessible)} failed")
