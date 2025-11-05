@@ -32,15 +32,18 @@ def fetch_html(ftp, remote_file="rollback.html"):
     return bio.read().decode("utf-8", errors="ignore")
 
 def detect_and_remove_duplicates(html):
-    """Remove duplicate partner blocks intelligently based on link href"""
     soup = BeautifulSoup(html, "html.parser")
     seen_links = set()
     removed = 0
 
-    for wrapper in soup.find_all("div", class_="client-wrapper"):
+    wrappers = soup.find_all("div", class_="client-wrapper")
+    print(f"[DEBUG] Found {len(wrappers)} partner wrappers")
+
+    for wrapper in wrappers:
         a_tag = wrapper.find("a", href=True)
         if a_tag:
             href = a_tag["href"].strip()
+            print(f"[DEBUG] Found link: {href}")
             if href in seen_links:
                 parent_block = wrapper.find_parent("div", class_=lambda c: c and "col-" in c)
                 (parent_block or wrapper).decompose()
@@ -50,6 +53,7 @@ def detect_and_remove_duplicates(html):
 
     print(f"[INFO] Removed {removed} duplicate blocks")
     return str(soup)
+
 
 def process_domain(domain, host, ftp_user, ftp_pass):
     print(f"🔹 Processing {domain} ({host})")
