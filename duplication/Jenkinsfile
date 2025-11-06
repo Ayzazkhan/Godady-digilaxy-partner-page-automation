@@ -16,18 +16,11 @@ pipeline {
           def domains = domainsOutput.tokenize('\n')
           echo "Domains to process: ${domains}"
 
-          for (d in domains) {
-            def credId = "ftp-${d}"
-            echo "Processing ${d} with credential id ${credId}"
-
-            withCredentials([usernamePassword(credentialsId: credId, usernameVariable: 'FTP_USER', passwordVariable: 'FTP_PASS')]) {
-              sh """
-                export CURRENT_DOMAIN=${d}
-                export FTP_USER=${FTP_USER}
-                export FTP_PASS='${FTP_PASS}'
-                python3 duplication/cleanup_duplicates.py
-              """
-            }
+          // SINGLE CREDENTIAL USE - ek hi baar script run karo
+          withCredentials([usernamePassword(credentialsId: 'ftp-londonlawyers.eu', usernameVariable: 'FTP_USER', passwordVariable: 'FTP_PASS')]) {
+            sh """
+              python3 duplication/cleanup_duplicates.py
+            """
           }
         }
       }
