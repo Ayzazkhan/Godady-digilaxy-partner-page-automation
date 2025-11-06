@@ -29,7 +29,7 @@ def handle(domain, host, ftp_user, ftp_pass, content):
 
     remote_file = "index.html"
     ts = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-    backup_name = f"index_old_{ts}.html"
+    backup_name = f"rollback.html"
 
     try:
         ftp.rename(remote_file, backup_name)
