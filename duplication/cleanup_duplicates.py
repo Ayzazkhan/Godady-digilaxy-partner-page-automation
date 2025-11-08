@@ -69,7 +69,7 @@ def remove_target_duplicates_keep_last(html, target_domains):
 def process_domain(domain, host, ftp_user, ftp_pass, target_domains):
     print(f"\n🔹 Processing {domain} ({host})")
     try:
-        ftp = FTP(host, timeout=15)
+        ftp = FTP(host, timeout=20)
         ftp.login(ftp_user, ftp_pass)
     except Exception as e:
         print(f"[❌] FTP connection failed for {domain}: {e}")
