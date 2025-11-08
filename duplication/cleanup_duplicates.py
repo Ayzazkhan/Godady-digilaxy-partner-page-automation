@@ -68,11 +68,36 @@ def remove_target_duplicates_keep_last(html, target_domains):
 
 def process_domain(domain, host, ftp_user, ftp_pass, target_domains):
     print(f"\n🔹 Processing {domain} ({host})")
+    
+    ftp = None
+    login_successful = False
+    
+    # Try 1: cicd@domain format
     try:
+        print(f"[DEBUG] Trying login with: cicd@{domain}")
         ftp = FTP(host, timeout=20)
-        ftp.login(ftp_user, ftp_pass)
+        ftp.login(f"cicd@{domain}", ftp_pass)
+        print(f"[✅] Login successful with cicd@{domain}")
+        login_successful = True
     except Exception as e:
-        print(f"[❌] FTP connection failed for {domain}: {e}")
+        print(f"[INFO] Login failed with cicd@{domain}: {e}")
+        
+        # Try 2: cicd_domain format
+        try:
+            print(f"[DEBUG] Trying alternate login with: cicd_{domain}")
+            if ftp:
+                ftp.close()
+            ftp = FTP(host, timeout=20)
+            ftp.login(f"cicd_{domain}", ftp_pass)
+            print(f"[✅] Login successful with cicd_{domain}")
+            login_successful = True
+        except Exception as e2:
+            print(f"[❌] Both login attempts failed for {domain}")
+            print(f"    - cicd@{domain}: Failed")
+            print(f"    - cicd_{domain}: {e2}")
+            return
+    
+    if not login_successful:
         return
 
     backup_file(ftp)
