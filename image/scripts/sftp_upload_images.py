@@ -3,10 +3,14 @@ import os, json
 from ftplib import FTP
 from pathlib import Path
 
-DOMAINS_FILE = "../../data/domains.json"
-LOCAL_IMAGES_FOLDER = "partners-logo"  # corrected folder name
-REMOTE_FOLDER = "partners-logo"        # remote folder to upload images
+#DOMAINS_FILE = "../../data/domains.json"
+#LOCAL_IMAGES_FOLDER = "partners-logo"  # corrected folder name
+#REMOTE_FOLDER = "partners-logo"        # remote folder to upload images
+BASE_DIR = Path(__file__).resolve().parents[2]  # 2 folders up from image/scripts/
 
+DOMAINS_FILE = BASE_DIR / "data/domains.json"
+LOCAL_IMAGES_FOLDER = BASE_DIR / "image/partners-logo"
+REMOTE_FOLDER = "partners-logo"
 def upload_images(domain, host, ftp_user, ftp_pass):
     print(f"\n🔹 Processing {domain} @ {host}")
     ftp = FTP(host, timeout=20)
