@@ -1,1 +1,41 @@
+pipeline {
+  agent any
+
+  stages {
+    stage('Checkout') {
+      steps {
+        git credentialsId: 'github-access', url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git', branch: 'main'
+      }
+    }
+
+    stage('Upload images') {
+      steps {
+        script {
+          // get domains list from JSON
+          def domainsOutput = sh(script: "python3 - <<'PY'\nimport json\nprint('\\n'.join(list(json.load(open('data/domains.json')).keys())))\nPY", returnStdout: true).trim()
+          def domains = domainsOutput.tokenize('\n')
+          echo "Domains to process: ${domains}"
+
+          for (d in domains) {
+            def credId = "ftp-${d}"
+            echo "Processing ${d} with credential id ${credId}"
+            withCredentials([usernamePassword(credentialsId: credId, usernameVariable: 'FTP_USER', passwordVariable: 'FTP_PASS')]) {
+              sh """
+                export CURRENT_DOMAIN=${d}
+                export FTP_USER=${FTP_USER}
+                export FTP_PASS='${FTP_PASS}'
+                python3 scripts/sftp_upload_images.py
+              """
+            }
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    success { echo "✅ All domains processed and images uploaded" }
+    failure { echo "❌ Some error occurred — check console" }
+  }
+}
 
