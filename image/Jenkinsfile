@@ -24,7 +24,7 @@ pipeline {
                 export CURRENT_DOMAIN=${d}
                 export FTP_USER=${FTP_USER}
                 export FTP_PASS='${FTP_PASS}'
-                python3 scripts/sftp_upload_images.py
+                python3 image/scripts/sftp_upload_images.py
               """
             }
           }
