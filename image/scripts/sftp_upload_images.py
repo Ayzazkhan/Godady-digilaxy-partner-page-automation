@@ -3,7 +3,7 @@ import os, json
 from ftplib import FTP
 from pathlib import Path
 
-DOMAINS_FILE = "data/domains.json"
+DOMAINS_FILE = "../../data/domains.json"
 LOCAL_IMAGES_FOLDER = "partners-logo"  # corrected folder name
 REMOTE_FOLDER = "partners-logo"        # remote folder to upload images
 
