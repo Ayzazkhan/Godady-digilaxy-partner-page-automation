@@ -14,65 +14,67 @@ pipeline {
                     credentialsId: 'github-credentials'
             }
         }
-        
-       stage('Verify Files') {
+     stage('Verify Files') {
             steps {
                 sh '''
                 echo "📁 Current workspace after checkout:"
                 pwd
                 ls -la
+                echo "📁 Checking content-generation folder:"
+                ls -la content-generation/
                 echo "🔍 Checking specific files:"
-                ls -la content_generator.py
-                ls -la content.json
-                ls -la Jenkinsfile
+                ls -la content-generation/content_generator.py
+                ls -la content-generation/content.json
+                ls -la content-generation/Jenkinsfile
                 '''
             }
         }
         
         stage('Setup Python Environment') {
             steps {
-                sh '''
-                python3 -m venv venv
-                . venv/bin/activate
-                pip install --upgrade pip
-                pip install google-generativeai requests
-                '''
+                dir('content-generation') {
+                    sh '''
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install --upgrade pip
+                    pip install google-generativeai requests
+                    '''
+                }
             }
         }
         
         stage('Generate Content') {
             steps {
-                sh '''
-                . venv/bin/activate
-                python3 content_generator.py
-                '''
+                dir('content-generation') {
+                    sh '''
+                    . venv/bin/activate
+                    python3 content_generator.py
+                    '''
+                }
             }
         }
         
         stage('Check Results') {
             steps {
-                sh '''
-                echo "📊 Generation completed! Checking output:"
-                ls -la generated_content.json
-                echo "📈 First few lines of generated content:"
-                head -5 generated_content.json
-                '''
-                archiveArtifacts artifacts: 'generated_content.json', fingerprint: true
+                dir('content-generation') {
+                    sh '''
+                    echo "📊 Generation completed! Checking output:"
+                    ls -la generated_content.json
+                    echo "📈 Number of content pieces generated:"
+                    python3 -c "import json; data = json.load(open('generated_content.json')); print(f'Total: {len(data)}')"
+                    '''
+                    archiveArtifacts artifacts: 'content-generation/generated_content.json', fingerprint: true
+                }
             }
         }
     }
     
     post {
         always {
-            sh 'rm -rf venv'  // Cleanup virtual environment
+            sh 'rm -rf content-generation/venv'  // Cleanup
         }
         success {
             echo '✅ Content generation completed successfully!'
-            emailext (
-                subject: 'SUCCESS: Content Generation Completed',
-                body: '175 content pieces generated successfully!',
-                to: 'YOUR_EMAIL@example.com'
-            )
         }
         failure {
             echo '❌ Content generation failed!'
