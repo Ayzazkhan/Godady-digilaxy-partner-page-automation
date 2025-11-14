@@ -6,75 +6,32 @@ import time
 
 print("🚀 Starting content generator...")
 print(f"📁 Current directory: {os.getcwd()}")
+print(f"📁 Files here: {os.listdir('.')}")
 
 # Gemini API Setup
-GEMINI_API_KEY = os.environ.get('GEMINI_KEY')
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 if not GEMINI_API_KEY:
-    print("❌ ERROR: GEMINI_KEY not found!")
+    print("❌ ERROR: GEMINI_API_KEY not found!")
     exit(1)
 
 print("✅ Gemini API Key found")
 
 try:
     genai.configure(api_key=GEMINI_API_KEY)
-    
-    # Available models check karo
-    print("🔍 Checking available models...")
-    models = genai.list_models()
-    available_models = [model.name for model in models]
-    print(f"✅ Available models count: {len(available_models)}")
-    
-    # Latest models use karo
-    if 'models/gemini-pro-latest' in available_models:
-        model_name = 'models/gemini-pro-latest'
-        print("✅ Using gemini-pro-latest model")
-    elif 'models/gemini-flash-latest' in available_models:
-        model_name = 'models/gemini-flash-latest'
-        print("✅ Using gemini-flash-latest model")
-    elif 'models/gemini-2.0-flash' in available_models:
-        model_name = 'models/gemini-2.0-flash'
-        print("✅ Using gemini-2.0-flash model")
-    else:
-        print("❌ No suitable Gemini model found!")
-        print("First 10 available models:", available_models[:10])
-        exit(1)
-        
-    model = genai.GenerativeModel(model_name)
-    print(f"✅ Model configured: {model_name}")
-    
+    model = genai.GenerativeModel('gemini-pro-latest')
+    print("✅ Using gemini-pro-latest model")
 except Exception as e:
     print(f"❌ Error configuring Gemini: {e}")
     exit(1)
 
 DOMAIN = "hesiexamtaker.com"
-KEYWORDS = [
-    "HESI exam preparation", "nursing exam tips", "medical test strategies", 
-    "healthcare exam guide", "nursing study materials", "HESI A2 practice"
-]
-
-def load_content_data():
-    """Load content.json"""
-    try:
-        with open('content.json', 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            print("✅ content.json loaded successfully")
-            return data
-    except Exception as e:
-        print(f"❌ Error loading content.json: {e}")
-        return {
-            "target_domain": DOMAIN,
-            "keywords": KEYWORDS,
-            "content_count": 3  # Testing ke liye kam content
-        }
+KEYWORDS = ["HESI exam preparation", "nursing exam tips", "medical test strategies"]
 
 def generate_content_with_links():
     """Generate content pieces with links"""
     
-    content_data = load_content_data()
-    
-    # Testing ke liye 3 content pieces banate hain
     CONTENT_COUNT = 3
-    print(f"🎯 Generating {CONTENT_COUNT} content pieces for testing...")
+    print(f"🎯 Generating {CONTENT_COUNT} content pieces...")
     
     all_generated_content = []
     
@@ -83,21 +40,19 @@ def generate_content_with_links():
             keyword = random.choice(KEYWORDS)
             
             prompt = f"""
-            Create a short, SEO-optimized article about {keyword} for nursing students.
-            
-            IMPORTANT REQUIREMENTS:
-            - Include this exact HTML link 2 times in the content: <a href='https://{DOMAIN}'>{DOMAIN}</a>
-            - Content should be 100-150 words
-            - SEO friendly and educational
-            - Natural link placement that looks organic
-            - Focus on practical tips and strategies
-            
-            Make sure to use this exact format for links: <a href='https://{DOMAIN}'>{DOMAIN}</a>
+            Create a short article about {keyword} for nursing students.
+            Include this link 2 times: <a href='https://{DOMAIN}'>{DOMAIN}</a>
+            Content: 100-150 words, educational tone.
             """
             
             print(f"📝 Generating {i+1}/{CONTENT_COUNT}: {keyword}")
             response = model.generate_content(prompt)
             content = response.text
+            
+            # Ensure content is not empty
+            if not content or len(content.strip()) < 10:
+                print(f"⚠️ Empty content for {i+1}, using fallback")
+                content = f"This is sample content about {keyword}. Visit <a href='https://{DOMAIN}'>{DOMAIN}</a> for more information. Learn more at <a href='https://{DOMAIN}'>{DOMAIN}</a>."
             
             link_count = content.count(f"<a href='https://{DOMAIN}'>{DOMAIN}</a>")
             
@@ -109,32 +64,46 @@ def generate_content_with_links():
                 "word_count": len(content.split())
             })
             
-            print(f"✅ Generated {i+1}/{CONTENT_COUNT} - Links: {link_count}, Words: {len(content.split())}")
+            print(f"✅ {i+1}/{CONTENT_COUNT} - Links: {link_count}, Words: {len(content.split())}")
             
-            # Small delay to avoid rate limiting
             time.sleep(2)
             
         except Exception as e:
             print(f"❌ Error {i+1}: {e}")
+            # Add fallback content
+            all_generated_content.append({
+                "id": i+1,
+                "keyword": "fallback",
+                "content": f"Fallback content. Visit <a href='https://{DOMAIN}'>{DOMAIN}</a> for resources. Check <a href='https://{DOMAIN}'>{DOMAIN}</a> for help.",
+                "links_count": 2,
+                "word_count": 20
+            })
             continue
     
-    # Save results
-    if all_generated_content:
+    # SAVE WITH PROPER ERROR HANDLING
+    try:
+        print("💾 Saving to generated_content.json...")
         with open('generated_content.json', 'w', encoding='utf-8') as f:
             json.dump(all_generated_content, f, indent=2, ensure_ascii=False)
         
-        print(f"🎉 SUCCESS! Generated {len(all_generated_content)} content pieces")
-        print(f"💾 Saved to: generated_content.json")
-        
-        # Summary print karo
-        total_links = sum(item['links_count'] for item in all_generated_content)
-        print(f"📊 SUMMARY: {len(all_generated_content)} contents, {total_links} total links")
-    else:
-        print("❌ No content generated!")
-        # Create empty file
-        with open('generated_content.json', 'w', encoding='utf-8') as f:
-            json.dump([], f)
-        print("💾 Created empty generated_content.json")
+        # Verify the file was written
+        if os.path.exists('generated_content.json'):
+            file_size = os.path.getsize('generated_content.json')
+            print(f"✅ File saved successfully! Size: {file_size} bytes")
+            
+            # Read back to verify
+            with open('generated_content.json', 'r', encoding='utf-8') as f:
+                verify_data = json.load(f)
+            print(f"✅ File verified: {len(verify_data)} items")
+        else:
+            print("❌ File not created!")
+            
+    except Exception as e:
+        print(f"❌ Error saving file: {e}")
+        # Create minimal backup file
+        backup_data = [{"error": "Failed to generate proper content"}]
+        with open('generated_content.json', 'w') as f:
+            json.dump(backup_data, f)
 
 if __name__ == "__main__":
     generate_content_with_links()
