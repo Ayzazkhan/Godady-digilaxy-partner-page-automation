@@ -67,3 +67,4 @@
             archiveArtifacts artifacts: 'content-generation/generated_content.json', fingerprint: true, allowEmptyArchive: true
         }
     }
+}
