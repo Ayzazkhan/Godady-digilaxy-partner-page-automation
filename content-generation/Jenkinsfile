@@ -1,0 +1,38 @@
+pipeline {
+    agent any
+
+    environment {
+        GEMINI_API_KEY = credentials('gemini-free-api')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/YOUR_REPO/content-generation.git',
+                    credentialsId: 'github-access'
+            }
+        }
+
+        stage('Generate SEO Content') {
+            steps {
+                sh """
+                    python3 generate.py
+                """
+            }
+        }
+
+        stage('Commit Updated JSON') {
+            steps {
+                sh """
+                    git config user.email "jenkins@server.com"
+                    git config user.name "Jenkins Bot"
+
+                    git add generated_content.json
+                    git commit -m "Auto: Updated SEO content"
+                    git push origin main
+                """
+            }
+        }
+    }
+}
