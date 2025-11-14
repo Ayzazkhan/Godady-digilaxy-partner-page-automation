@@ -1,23 +1,41 @@
 pipeline {
     agent any
-
+    
+    environment {
+        GEMINI_KEY = credentials('GEMINI_API_KEY')
+    }
+    
     stages {
-        stage('Run SEO Content Script') {
+        stage('Setup Python Environment') {
             steps {
-                withCredentials([string(credentialsId: 'GEMINI_API_KEY', variable: 'GEMINI_KEY')]) {
-                    sh """
-                    pip3 install google-generativeai
-                    python3 script.py --key $GEMINI_KEY
-                    """
+                script {
+                    sh '''
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install --upgrade pip
+                    pip install google-generativeai requests
+                    '''
+                }
+            }
+        }
+        
+        stage('Generate Content') {
+            steps {
+                script {
+                    withEnv(["PATH+venv=${env.WORKSPACE}/venv/bin"]) {
+                        sh '''
+                        . venv/bin/activate
+                        python3 content_generator.py
+                        '''
+                    }
                 }
             }
         }
     }
-
+    
     post {
-        success {
-            archiveArtifacts artifacts: 'output.json', onlyIfSuccessful: true
-            echo "DONE! 175 content generated."
+        always {
+            sh 'rm -rf venv'  // Cleanup
         }
     }
 }
