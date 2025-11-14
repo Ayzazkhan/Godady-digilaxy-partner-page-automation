@@ -1,3 +1,4 @@
+
 pipeline {
     agent any
     
@@ -6,36 +7,35 @@ pipeline {
     }
     
     stages {
-        stage('Setup Python Environment') {
+        stage('Checkout Code') {
             steps {
-                script {
-                    sh '''
-                    python3 -m venv venv
-                    . venv/bin/activate
-                    pip install --upgrade pip
-                    pip install google-generativeai requests
-                    '''
-                }
+                git branch: 'main', 
+                    url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git',
+                    credentialsId: 'github-credentials'
             }
         }
         
-        stage('Generate Content') {
+        stage('Verify Files') {
             steps {
-                script {
-                    withEnv(["PATH+venv=${env.WORKSPACE}/venv/bin"]) {
-                        sh '''
-                        . venv/bin/activate
-                        python3 content_generator.py
-                        '''
-                    }
-                }
+                sh '''
+                echo "📁 Files after checkout:"
+                ls -la
+                echo "📄 Checking Python file:"
+                ls -la content_generator.py || echo "❌ content_generator.py not found"
+                ls -la content.json || echo "❌ content.json not found"
+                '''
             }
         }
-    }
-    
-    post {
-        always {
-            sh 'rm -rf venv'  // Cleanup
+        
+        stage('Setup & Run') {
+            steps {
+                sh '''
+                python3 -m venv venv
+                . venv/bin/activate
+                pip install google-generativeai requests
+                python3 content_generator.py
+                '''
+            }
         }
     }
 }
