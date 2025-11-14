@@ -63,7 +63,7 @@ pipeline {
                     echo "📈 Number of content pieces generated:"
                     python3 -c "import json; data = json.load(open('generated_content.json')); print(f'Total: {len(data)}')"
                     '''
-                    archiveArtifacts artifacts: 'content-generation/generated_content.json', fingerprint: true
+                    archiveArtifacts artifacts: 'generated_content.json', fingerprint: true
                 }
             }
         }
