@@ -15,27 +15,67 @@ pipeline {
             }
         }
         
-        stage('Verify Files') {
+       stage('Verify Files') {
             steps {
                 sh '''
-                echo "📁 Files after checkout:"
+                echo "📁 Current workspace after checkout:"
+                pwd
                 ls -la
-                echo "📄 Checking Python file:"
-                ls -la content_generator.py || echo "❌ content_generator.py not found"
-                ls -la content.json || echo "❌ content.json not found"
+                echo "🔍 Checking specific files:"
+                ls -la content_generator.py
+                ls -la content.json
+                ls -la Jenkinsfile
                 '''
             }
         }
         
-        stage('Setup & Run') {
+        stage('Setup Python Environment') {
             steps {
                 sh '''
                 python3 -m venv venv
                 . venv/bin/activate
+                pip install --upgrade pip
                 pip install google-generativeai requests
+                '''
+            }
+        }
+        
+        stage('Generate Content') {
+            steps {
+                sh '''
+                . venv/bin/activate
                 python3 content_generator.py
                 '''
             }
+        }
+        
+        stage('Check Results') {
+            steps {
+                sh '''
+                echo "📊 Generation completed! Checking output:"
+                ls -la generated_content.json
+                echo "📈 First few lines of generated content:"
+                head -5 generated_content.json
+                '''
+                archiveArtifacts artifacts: 'generated_content.json', fingerprint: true
+            }
+        }
+    }
+    
+    post {
+        always {
+            sh 'rm -rf venv'  // Cleanup virtual environment
+        }
+        success {
+            echo '✅ Content generation completed successfully!'
+            emailext (
+                subject: 'SUCCESS: Content Generation Completed',
+                body: '175 content pieces generated successfully!',
+                to: 'YOUR_EMAIL@example.com'
+            )
+        }
+        failure {
+            echo '❌ Content generation failed!'
         }
     }
 }
