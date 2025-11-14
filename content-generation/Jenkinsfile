@@ -1,4 +1,11 @@
- stages {
+pipeline {
+    agent any
+    
+    environment {
+        GEMINI_API_KEY = credentials('GEMINI_API_KEY')
+    }
+    
+    stages {
         stage('Checkout Code') {
             steps {
                 git branch: 'main', 
