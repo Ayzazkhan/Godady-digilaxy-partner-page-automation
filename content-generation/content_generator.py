@@ -22,20 +22,25 @@ try:
     print("🔍 Checking available models...")
     models = genai.list_models()
     available_models = [model.name for model in models]
-    print(f"✅ Available models: {available_models}")
+    print(f"✅ Available models count: {len(available_models)}")
     
-    # Gemini Pro ya Gemini 1.0 Pro use karo
-    if 'models/gemini-1.0-pro' in available_models:
-        model_name = 'models/gemini-1.0-pro'
-    elif 'models/gemini-pro' in available_models:
-        model_name = 'models/gemini-pro'
+    # Latest models use karo
+    if 'models/gemini-pro-latest' in available_models:
+        model_name = 'models/gemini-pro-latest'
+        print("✅ Using gemini-pro-latest model")
+    elif 'models/gemini-flash-latest' in available_models:
+        model_name = 'models/gemini-flash-latest'
+        print("✅ Using gemini-flash-latest model")
+    elif 'models/gemini-2.0-flash' in available_models:
+        model_name = 'models/gemini-2.0-flash'
+        print("✅ Using gemini-2.0-flash model")
     else:
         print("❌ No suitable Gemini model found!")
-        print("Available models:", available_models)
+        print("First 10 available models:", available_models[:10])
         exit(1)
         
     model = genai.GenerativeModel(model_name)
-    print(f"✅ Using model: {model_name}")
+    print(f"✅ Model configured: {model_name}")
     
 except Exception as e:
     print(f"❌ Error configuring Gemini: {e}")
@@ -59,7 +64,7 @@ def load_content_data():
         return {
             "target_domain": DOMAIN,
             "keywords": KEYWORDS,
-            "content_count": 5  # Testing ke liye kam content
+            "content_count": 3  # Testing ke liye kam content
         }
 
 def generate_content_with_links():
@@ -80,13 +85,14 @@ def generate_content_with_links():
             prompt = f"""
             Create a short, SEO-optimized article about {keyword} for nursing students.
             
-            Requirements:
-            - Include this exact link 2 times: <a href='https://{DOMAIN}'>{DOMAIN}</a>
+            IMPORTANT REQUIREMENTS:
+            - Include this exact HTML link 2 times in the content: <a href='https://{DOMAIN}'>{DOMAIN}</a>
             - Content should be 100-150 words
             - SEO friendly and educational
-            - Natural link placement
+            - Natural link placement that looks organic
+            - Focus on practical tips and strategies
             
-            Format links exactly like: <a href='https://{DOMAIN}'>{DOMAIN}</a>
+            Make sure to use this exact format for links: <a href='https://{DOMAIN}'>{DOMAIN}</a>
             """
             
             print(f"📝 Generating {i+1}/{CONTENT_COUNT}: {keyword}")
@@ -99,12 +105,14 @@ def generate_content_with_links():
                 "id": i+1,
                 "keyword": keyword,
                 "content": content,
-                "links_count": link_count
+                "links_count": link_count,
+                "word_count": len(content.split())
             })
             
-            print(f"✅ Generated {i+1}/{CONTENT_COUNT} - Links: {link_count}")
+            print(f"✅ Generated {i+1}/{CONTENT_COUNT} - Links: {link_count}, Words: {len(content.split())}")
             
-            time.sleep(1)  # Avoid rate limiting
+            # Small delay to avoid rate limiting
+            time.sleep(2)
             
         except Exception as e:
             print(f"❌ Error {i+1}: {e}")
@@ -115,8 +123,12 @@ def generate_content_with_links():
         with open('generated_content.json', 'w', encoding='utf-8') as f:
             json.dump(all_generated_content, f, indent=2, ensure_ascii=False)
         
-        print(f"🎉 Completed! Generated {len(all_generated_content)} content pieces")
+        print(f"🎉 SUCCESS! Generated {len(all_generated_content)} content pieces")
         print(f"💾 Saved to: generated_content.json")
+        
+        # Summary print karo
+        total_links = sum(item['links_count'] for item in all_generated_content)
+        print(f"📊 SUMMARY: {len(all_generated_content)} contents, {total_links} total links")
     else:
         print("❌ No content generated!")
         # Create empty file
