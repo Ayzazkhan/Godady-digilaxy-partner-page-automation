@@ -2,93 +2,91 @@ import json
 import os
 import google.generativeai as genai
 import random
+import time
+
+print("🚀 Starting content generator...")
+print(f"📁 Current directory: {os.getcwd()}")
+print(f"📁 Files here: {os.listdir('.')}")
 
 # Gemini API Setup
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+if not GEMINI_API_KEY:
+    print("❌ ERROR: GEMINI_KEY not found!")
+    exit(1)
+
+print("✅ Gemini API Key found")
 genai.configure(api_key=GEMINI_API_KEY)
 
-# Load content.json
-with open('content.json', 'r', encoding='utf-8') as f:
-    content_data = json.load(f)
-
-# Domain and keywords
 DOMAIN = "hesiexamtaker.com"
-KEYWORDS = ["HESI exam", "nursing exam", "medical test", "healthcare exam", "nursing preparation"]
+KEYWORDS = [
+    "HESI exam preparation", "nursing exam tips", "medical test strategies", 
+    "healthcare exam guide", "nursing study materials", "HESI A2 practice"
+]
+
+def load_content_data():
+    """Load content.json"""
+    try:
+        with open('content.json', 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            print("✅ content.json loaded successfully")
+            return data
+    except Exception as e:
+        print(f"❌ Error loading content.json: {e}")
+        return {
+            "target_domain": DOMAIN,
+            "keywords": KEYWORDS,
+            "content_count": 175
+        }
 
 def generate_content_with_links():
-    """Generate content with natural link placement"""
+    """Generate 175 content pieces with links"""
     
     model = genai.GenerativeModel('gemini-pro')
-    
-    # Different link styles
-    link_styles = [
-        f"Visit <a href='https://{DOMAIN}'>{DOMAIN}</a> for expert guidance",
-        f"Get professional help from <a href='https://{DOMAIN}'>{DOMAIN}</a>",
-        f"Experts at <a href='https://{DOMAIN}'>{DOMAIN}</a> can assist you",
-        f"Check out <a href='https://{DOMAIN}'>{DOMAIN}</a> for comprehensive resources",
-        f"<a href='https://{DOMAIN}'>{DOMAIN}</a> offers the best preparation materials"
-    ]
+    content_data = load_content_data()
     
     all_generated_content = []
     
     for i in range(175):
         try:
-            # Random keyword selection
             keyword = random.choice(KEYWORDS)
             
             prompt = f"""
             Create a unique, SEO-optimized article about {keyword} for nursing students.
             
             Requirements:
-            - Include the domain {DOMAIN} naturally 2 times in the content
-            - Use different link styles naturally
-            - Content should be 300-400 words
-            - SEO friendly and engaging
-            - Focus on educational value
+            - Include this exact link 2 times: <a href='https://{DOMAIN}'>{DOMAIN}</a>
+            - Content should be 250-350 words
+            - SEO friendly and educational
+            - Natural link placement
+            - Professional tone
             
-            Format the links like this: <a href='https://{DOMAIN}'>{DOMAIN}</a>
-            Make sure links look natural and contextual.
+            Format links exactly like: <a href='https://{DOMAIN}'>{DOMAIN}</a>
             """
             
+            print(f"📝 Generating {i+1}/175: {keyword}")
             response = model.generate_content(prompt)
-            generated_text = response.text
-            
-            # Ensure exactly 2 links
-            link_count = generated_text.count(f"<a href='https://{DOMAIN}'>{DOMAIN}</a>")
-            
-            if link_count < 2:
-                # Add missing links naturally
-                sentences = generated_text.split('. ')
-                if len(sentences) > 3:
-                    # Add first link
-                    insert_pos = random.randint(1, len(sentences)//3)
-                    sentences.insert(insert_pos, random.choice(link_styles))
-                    
-                    # Add second link  
-                    insert_pos = random.randint(2*len(sentences)//3, len(sentences)-1)
-                    sentences.insert(insert_pos, random.choice(link_styles))
-                    
-                    generated_text = '. '.join(sentences)
+            content = response.text
             
             all_generated_content.append({
                 "id": i+1,
                 "keyword": keyword,
-                "content": generated_text,
-                "links_count": generated_text.count(f"<a href='https://{DOMAIN}'>{DOMAIN}</a>")
+                "content": content,
+                "links_count": content.count(f"<a href='https://{DOMAIN}'>{DOMAIN}</a>")
             })
             
-            print(f"Generated content {i+1}/175")
+            print(f"✅ Generated {i+1}/175 - Links: {content.count(f'<a href=https://{DOMAIN}>{DOMAIN}</a>')}")
+            
+            time.sleep(2)  # Avoid rate limiting
             
         except Exception as e:
-            print(f"Error generating content {i+1}: {str(e)}")
+            print(f"❌ Error {i+1}: {e}")
             continue
     
-    # Save all generated content
+    # Save results
     with open('generated_content.json', 'w', encoding='utf-8') as f:
         json.dump(all_generated_content, f, indent=2, ensure_ascii=False)
     
-    print("✅ Content generation completed!")
-    print(f"📊 Total generated: {len(all_generated_content)}")
+    print(f"🎉 Completed! Generated {len(all_generated_content)} content pieces")
 
 if __name__ == "__main__":
     generate_content_with_links()
