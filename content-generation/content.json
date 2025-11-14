@@ -1,5 +1,6 @@
 {
-  "seed_content": [
-    "Get <a href='https://example.com'>accounting assignment help</a> in the UK from the best <a href='https://example.com'>accounting assignment experts</a>, and you will get the grades."
-  ]
+  "base_content": "HESI exam preparation resources for nursing students",
+  "target_domain": "hesiexamtaker.com",
+  "keywords": ["HESI exam", "nursing exam", "medical test", "healthcare exam"],
+  "tone": "professional and educational"
 }
