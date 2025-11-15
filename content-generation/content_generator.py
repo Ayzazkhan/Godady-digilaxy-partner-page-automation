@@ -111,7 +111,7 @@ for i in range(TOTAL):
 # SAVE OUTPUT
 print("💾 Saving to output.json...")
 try:
-    with open("output.json", "w", encoding="utf-8") as f:
+    with open("generated_content.json", "w", encoding="utf-8") as f:
         json.dump(generated_data, f, indent=2, ensure_ascii=False)
 
     print("🎉 SUCCESS! 175 SEO contents saved in output.json")
