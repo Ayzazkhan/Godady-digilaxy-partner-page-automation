@@ -53,7 +53,7 @@ print(f"🔗 Found {len(links)} links in base content")
 def generate_single_content(keyword):
     prompt = f"""
 You are an SEO and content writing expert.
-Write a **high quality**, **natural**, **human-like** mini article (60–80 words).
+Write a **high quality**, **natural**, **human-like** mini article (30–40 words).
 The article must be based on the topic: **{keyword}**.
 
 IMPORTANT RULES:
