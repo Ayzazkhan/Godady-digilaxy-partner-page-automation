@@ -27,10 +27,13 @@ if not GEMINI_API_KEY:
     print("❌ ERROR: GEMINI_API_KEY not found!")
     exit(1)
 
+# CONFIGURE API
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-pro')
 
-print("✅ Gemini model loaded")
+# NEW WORKING MODEL
+model = genai.GenerativeModel("gemini-1.5-flash")
+
+print("✅ Gemini model loaded: gemini-1.5-flash")
 
 def generate_seo_contents():
     CONTENT_COUNT = 175
@@ -44,24 +47,23 @@ def generate_seo_contents():
 
             prompt = f"""
 You are a senior SEO expert and professional medical content writer.
-Your job is to generate unique SEO-optimized content for the domain: {DOMAIN}
+Generate a unique 140–160 word article about "{keyword}".
 
 RULES:
-- Length: 120–160 words.
-- Tone: {TONE}
-- Use SEO-rich variations of the keyword: "{keyword}"
-- Do NOT repeat the exact domain name inside text.
-- But include this link EXACTLY 2 times inside content:
+- Use tone: {TONE}
+- Insert this link EXACTLY 2 times inside natural sentences:
   <a href='https://{DOMAIN}'>{keyword}</a>
 
-- Every article must be 100% unique.
-- NO bullet points. Only paragraph.
-- Keep it educational, helpful, and human-like.
+- Do NOT repeat the domain name in naked form.
+- No bullet points.
+- 100% unique content.
+- Educational & helpful.
+- Single paragraph only.
 
-Base sample content for your reference:
+Base sample content for understanding:
 {BASE_CONTENT}
 
-Return ONLY the article paragraph. No explanation.
+Return only the article paragraph. No extra text.
 """
 
             print(f"📝 Generating {i}/{CONTENT_COUNT}: {keyword}")
@@ -69,11 +71,10 @@ Return ONLY the article paragraph. No explanation.
             response = model.generate_content(prompt)
             content = response.text.strip()
 
-            # Verify links count
             required_link = f"<a href='https://{DOMAIN}'>{keyword}</a>"
             link_count = content.count(required_link)
 
-            # If less than 2 links → force add
+            # Ensure exactly 2 links
             while link_count < 2:
                 content += f" Learn more at <a href='https://{DOMAIN}'>{keyword}</a>."
                 link_count += 1
@@ -86,7 +87,7 @@ Return ONLY the article paragraph. No explanation.
                 "words": len(content.split())
             })
 
-            time.sleep(1)
+            time.sleep(0.8)
 
         except Exception as e:
             print(f"❌ Error generating content {i}: {e}")
@@ -95,10 +96,9 @@ Return ONLY the article paragraph. No explanation.
     return results
 
 
-# MAIN GENERATION
+# SAVE RESULTS
 generated = generate_seo_contents()
 
-# SAVE FILE
 try:
     with open("generated_content.json", "w", encoding="utf-8") as f:
         json.dump(generated, f, indent=2, ensure_ascii=False)
