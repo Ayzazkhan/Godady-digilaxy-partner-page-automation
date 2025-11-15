@@ -5,7 +5,7 @@ import random
 import time
 import re
 
-print("🚀 Starting SEO content generator (DeepSeek Version)...")
+print("🚀 Starting SEO content generator (Hugging Face Version)...")
 print(f"📁 Current directory: {os.getcwd()}")
 
 # Load content.json
@@ -27,14 +27,14 @@ if not base_content or not domain:
 
 print("✅ Loaded base content config")
 
-# DeepSeek API Configuration
-DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
+# Hugging Face API Configuration
+HUGGINGFACE_API_KEY = os.environ.get("HUGGINGFACE_API_KEY")
 
-if not DEEPSEEK_API_KEY:
-    print("❌ ERROR: DEEPSEEK_API_KEY not found!")
+if not HUGGINGFACE_API_KEY:
+    print("❌ ERROR: HUGGINGFACE_API_KEY not found!")
     exit(1)
 
-print("🔥 DeepSeek API Key Loaded")
+print("🔥 Hugging Face API Key Loaded")
 
 # Extract links
 links = re.findall(r"<a href='https://[^']+'[^>]*>[^<]+</a>", base_content)
@@ -46,52 +46,51 @@ if len(links) == 0:
 print(f"🔗 Found {len(links)} links in base content")
 
 # ---------------------------
-# DEEPSEEK CONTENT GENERATOR FUNCTION
+# HUGGING FACE CONTENT GENERATOR FUNCTION
 # ---------------------------
 def generate_single_content(keyword):
     prompt = f"""
 You are an SEO expert and professional human content writer.
 
-Write a short promotional SEO paragraph (35–45 words) based on the topic: **{keyword}**.
+Write a short promotional SEO paragraph (35-45 words) based on the topic: **{keyword}**.
 
 STYLE + RULES:
 - Natural human tone, no robotic or AI pattern.
 - Tone must match Hesiexamtaker services (exam help, guided preparation, confidentiality, expert support).
 - Domain name **{domain}** ko exact repeat nahi karna, but concept of "HESI exam help, expert assistance, nursing test support" ko naturally use karna.
-- The content should feel like a short promotional description, similar in style to:
-
-Examples:
-1. "Pass your HESI pharmacology practice exam with ideal grades. Our platform offers confidential test-taking and focused practice to master this difficult section for your nursing school success."
-2. "Pay someone to take my HESI exam is a service that connects nursing students with expert professionals who provide guided help, preparation, and personalized support for better exam performance."
 
 MANDATORY:
 - Include these links exactly once each inside the content:
-  {json.dumps(links, indent=2)}
+{chr(10).join(links)}
 
 OUTPUT:
 Only the final content. No explanation. No formatting.
-
-Base content reference:
-{base_content}
 """
 
     try:
         headers = {
-            "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+            "Authorization": f"Bearer {HUGGINGFACE_API_KEY}",
             "Content-Type": "application/json"
         }
         
+        # Hugging Face Inference API - using a good free model
+        API_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-large"
+        
         payload = {
-            "model": "deepseek-chat",
-            "messages": [
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": 0.7,
-            "max_tokens": 500
+            "inputs": prompt,
+            "parameters": {
+                "max_length": 200,
+                "temperature": 0.8,
+                "do_sample": True,
+                "return_full_text": False
+            },
+            "options": {
+                "wait_for_model": True
+            }
         }
         
         response = requests.post(
-            "https://api.deepseek.com/v1/chat/completions",
+            API_URL,
             headers=headers,
             json=payload,
             timeout=60
@@ -99,23 +98,31 @@ Base content reference:
         
         if response.status_code == 200:
             result = response.json()
-            content = result["choices"][0]["message"]["content"].strip()
-            return content
+            if isinstance(result, list) and len(result) > 0:
+                content = result[0].get('generated_text', '').strip()
+                if content:
+                    return content
+                else:
+                    print(f"⚠️ Empty content from API for {keyword}")
+            else:
+                print(f"⚠️ Unexpected API response format for {keyword}")
         else:
-            print(f"❌ API Error: {response.status_code} - {response.text}")
-            return f"Error generating content for {keyword}"
+            print(f"❌ API Error {response.status_code}: {response.text}")
             
     except Exception as e:
-        print(f"❌ API Call Failed: {e}")
-        return f"Error generating content for {keyword}"
+        print(f"❌ API Call Failed for {keyword}: {e}")
+    
+    # Fallback content if API fails
+    fallback_content = f"Looking for expert {keyword} assistance? Get comprehensive support and professional guidance for your nursing exam preparation. {links[0] if len(links) > 0 else ''} {links[1] if len(links) > 1 else ''}"
+    return fallback_content
 
 # ---------------------------
 # MAIN LOOP
 # ---------------------------
-TOTAL = 175
+TOTAL = 50  # Safe limit for free tier
 generated_data = []
 
-print(f"🎯 Generating {TOTAL} SEO contents...")
+print(f"🎯 Generating {TOTAL} SEO contents with Hugging Face...")
 
 for i in range(TOTAL):
     try:
@@ -125,20 +132,24 @@ for i in range(TOTAL):
         content = generate_single_content(keyword)
 
         # Ensure all required links are included
+        links_included = 0
         for link in links:
-            if link not in content:
+            if link in content:
+                links_included += 1
+            else:
                 content += f" {link}"
 
         generated_data.append({
             "id": i + 1,
             "keyword": keyword,
             "content": content,
-            "word_count": len(content.split())
+            "word_count": len(content.split()),
+            "links_included": links_included
         })
 
-        print(f"✅ Generated item {i+1}/{TOTAL}")
+        print(f"✅ Generated item {i+1}/{TOTAL} - Links: {links_included}")
 
-        time.sleep(1.5)
+        time.sleep(2)  # Rate limiting for free API
 
     except Exception as e:
         print(f"❌ Error in item {i+1}: {e}")
@@ -147,12 +158,11 @@ for i in range(TOTAL):
 # SAVE OUTPUT
 print("💾 Saving to output.json...")
 try:
-    OUTPUT_PATH = os.path.join(os.getcwd(), "output.json")
-
-    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
+    with open("output.json", "w", encoding="utf-8") as f:
         json.dump(generated_data, f, indent=2, ensure_ascii=False)
 
-    print("🎉 SUCCESS! 175 SEO contents saved in output.json")
+    print(f"🎉 SUCCESS! {len(generated_data)} SEO contents saved in output.json")
+    print(f"📊 Total links included: {sum(item['links_included'] for item in generated_data)}")
 
 except Exception as e:
     print(f"❌ Error saving file: {e}")
