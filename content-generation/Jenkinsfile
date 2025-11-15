@@ -1,10 +1,9 @@
 pipeline {
     agent any
 
-    environment {
-        DEEPSEEK_API_KEY = credentials('deepsekkapi')
-    }
-
+environment {
+    DEEPSEEK_API_KEY = credentials('deepsekkapi')  // Change from GEMINI_API_KEY to DEEPSEEK_API_KEY
+}
     stages {
 
         stage('Checkout Code') {
@@ -38,6 +37,19 @@ pipeline {
                 }
             }
         }
+
+        stage('Setup Python Environment') {
+    steps {
+        dir('content-generation') {
+            sh '''
+            python3 -m venv venv
+            . venv/bin/activate
+            pip install --upgrade pip
+            pip install requests  # Remove google-generativeai, add requests
+            '''
+        }
+    }
+}
 
         stage('Verify Content (Safe)') {
             steps {
