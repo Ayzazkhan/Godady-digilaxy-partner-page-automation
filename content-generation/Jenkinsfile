@@ -1,19 +1,19 @@
 pipeline {
     agent any
-    
+
     environment {
         GEMINI_API_KEY = credentials('GEMINI_API_KEY')
     }
-    
+
     stages {
         stage('Checkout Code') {
             steps {
                 git branch: 'main', 
                     url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git',
-                    credentialsId: 'github-credentials'  // ✅ Yahan se credentials aayenge
+                    credentialsId: 'github-credentials'
             }
         }
-        
+
         stage('Setup Python Environment') {
             steps {
                 dir('content-generation') {
@@ -26,7 +26,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Generate Content') {
             steps {
                 dir('content-generation') {
@@ -37,7 +37,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Verify Content') {
             steps {
                 dir('content-generation') {
@@ -48,33 +48,45 @@ pipeline {
                 }
             }
         }
-        
-       stage('Push to GitHub') {
-    steps {
-        withCredentials([usernamePassword(
-            credentialsId: 'github-credentials',
-            usernameVariable: 'GIT_USERNAME',
-            passwordVariable: 'GIT_PASSWORD'
-        )]) {
-            dir('content-generation') {
-                sh '''
-                echo "🚀 Pushing to GitHub..."
-                git config --global user.email "ayzazkhna82@gmail.com"
-                git config --global user.name "Ayzazkhan"
 
-                git add generated_content.json
-                git diff-index --quiet HEAD || git commit -m "Auto-generated: 175 content pieces with links [Jenkins Build ${BUILD_NUMBER}]"
+        stage('Push to GitHub') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'github-credentials',
+                    usernameVariable: 'GIT_USERNAME',
+                    passwordVariable: 'GIT_PASSWORD'
+                )]) {
+                    dir('content-generation') {
+                        sh '''
+                        echo "🚀 Pushing to GitHub..."
+                        git config --global user.email "ayzazkhna82@gmail.com"
+                        git config --global user.name "Ayzazkhan"
 
-                git remote set-url origin https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git
-                git push origin main
-                echo "✅ Successfully pushed to GitHub!"
-                '''
+                        # Debug: show current git status and recent commits
+                        git status
+                        git log -3 --oneline
+
+                        # Stage and commit changes if any
+                        git add generated_content.json
+                        git diff-index --quiet HEAD || git commit -m "Auto-generated: 175 content pieces with links [Jenkins Build ${BUILD_NUMBER}]"
+
+                        # Set remote with credentials
+                        git remote set-url origin https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git
+
+                        # Debug before push
+                        echo "🔹 Ready to push to GitHub"
+                        git remote -v
+
+                        # Push changes
+                        git push origin main
+                        echo "✅ Successfully pushed to GitHub!"
+                        '''
+                    }
+                }
             }
         }
     }
-}
 
-    
     post {
         always {
             sh 'rm -rf content-generation/venv'
