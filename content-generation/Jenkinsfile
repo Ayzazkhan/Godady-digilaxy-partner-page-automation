@@ -85,7 +85,7 @@ except Exception as e:
                     echo "🚀 Pushing to GitHub..."
                     
                     # Git configuration
-                    git config --global user.email "ayzazkhna82@gmail.com"
+                    git config --global user.email "ayzazkhan82@gmail.com"
                     git config --global user.name "Ayzazkhan"
                     
                     # Add and commit
