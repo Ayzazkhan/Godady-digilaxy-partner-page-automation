@@ -75,30 +75,43 @@ def generate_single_content(keyword):
     prompt = f"""
 You are an SEO expert and professional human content writer.
 
-Write a short promotional SEO paragraph (35–45 words) based on the topic: **{keyword}**.
+Write a short promotional SEO paragraph (35–45 words) based on: **{keyword}**.
 
-STYLE + RULES:
-- Natural human tone, no robotic or AI pattern.
-- Tone must match Hesiexamtaker services (exam help, guided preparation, confidentiality, expert support).
-- Domain name **{domain}** ko exact repeat nahi karna, but concept of "HESI exam help, expert assistance, nursing test support" ko naturally use karna.
-- The content should feel like a short promotional description, similar in style to:
+STYLE:
+- Natural human tone
+- Nursing exam support type tone
+- Unique, human-like, non-AI text
+- Must include these links exactly once:
+  {json.dumps(links)}
 
-Examples:
-1. "Pass your HESI pharmacology practice exam with ideal grades. Our platform offers confidential test-taking and focused practice to master this difficult section for your nursing school success."
-2. "Pay someone to take my HESI exam is a service that connects nursing students with expert professionals who provide guided help, preparation, and personalized support for better exam performance."
-
-MANDATORY:
-- Include these links exactly once each inside the content:
-  {json.dumps(links, indent=2)}
-
-OUTPUT:
-Only the final content. No explanation.
-
-Base content reference:
-{base_content}
+Output only the final paragraph.
 """
 
-    return deepseek_generate(prompt).strip()
+    url = "https://api.deepseek.com/v1/chat/completions"
+
+    headers = {
+        "Authorization": f"Bearer {os.environ['DEEPSEEK_API_KEY']}",
+        "Content-Type": "application/json"
+    }
+
+    body = {
+        "model": "deepseek-chat",
+        "messages": [
+            {"role": "user", "content": prompt}
+        ]
+    }
+
+    response = requests.post(url, headers=headers, json=body).json()
+
+    # New DeepSeek output style
+    try:
+        return response["choices"][0]["message"]["content"].strip()
+    except:
+        # fallback for DeepSeek-R1 / DeepSeek V3 output format
+        if "output_text" in response:
+            return response["output_text"].strip()
+
+        raise Exception("Invalid DeepSeek API Response: " + str(response))
 
 
 # ---------------------------
