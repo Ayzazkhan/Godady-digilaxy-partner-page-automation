@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        GEMINI_API_KEY = credentials('deepsekkapi')
+        DEEPSEEK_API_KEY = credentials('deepsekkapi')
     }
 
     stages {
@@ -22,7 +22,7 @@ pipeline {
                     python3 -m venv venv
                     . venv/bin/activate
                     pip install --upgrade pip
-                    pip install google-generativeai requests
+                    pip install requests
                     '''
                 }
             }
@@ -48,9 +48,8 @@ pipeline {
                     python3 - << 'EOF'
 import json, os
 
-file = "generated_content.json"
+file = "output.json"
 
-# If file missing → create fallback
 if not os.path.exists(file):
     print("❌ File missing. Creating fallback JSON...")
     fallback = [{"id":1, "content":"fallback", "links_count":0}]
@@ -59,7 +58,6 @@ if not os.path.exists(file):
 
 raw = open(file,"r",encoding="utf-8").read().strip()
 
-# If empty or bad
 if raw == "" or raw.startswith("<") or raw.startswith("Error"):
     print("❌ Invalid JSON content. Creating fallback...")
     fallback = [{"id":1, "content":"fallback", "links_count":0}]
@@ -68,7 +66,7 @@ if raw == "" or raw.startswith("<") or raw.startswith("Error"):
 
 try:
     data = json.loads(raw)
-    print(f"✅ JSON OK — {len(data)} items, total links: {sum(i.get('links_count',0) for i in data)}")
+    print(f"✅ JSON OK — {len(data)} items")
 except Exception as e:
     print("❌ JSON parse failed:", e)
     print("⚠ Writing fallback JSON...")
@@ -97,7 +95,7 @@ EOF
                         git status
                         git pull origin main --rebase
 
-                        git add generated_content.json
+                        git add output.json
                         git diff-index --quiet HEAD || git commit -m "Auto-generated content (Jenkins Build ${BUILD_NUMBER})"
 
                         git remote set-url origin https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git
@@ -113,7 +111,7 @@ EOF
     post {
         always {
             sh 'rm -rf content-generation/venv'
-            archiveArtifacts artifacts: 'content-generation/generated_content.json', fingerprint: true
+            archiveArtifacts artifacts: 'content-generation/output.json', fingerprint: true
         }
     }
 }
