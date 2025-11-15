@@ -72,7 +72,7 @@ MANDATORY:
 
 OUTPUT:
 Only the final content. No explanation. No formatting.
-"""
+
 
 Base content reference:
 {base_content}
