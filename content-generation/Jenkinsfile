@@ -67,7 +67,7 @@ pipeline {
                         git commit -m "Auto-generated: 175 content pieces with links [Jenkins Build ${BUILD_NUMBER}]" || echo "No changes"
                         
                         # ✅ Ab credentials variables se aayenge
-                        git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git main
+                        git push https://Ayzazkhan:B/18/542indusmehran@github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git main
                         echo "✅ Successfully pushed to GitHub!"
                         '''
                     }
