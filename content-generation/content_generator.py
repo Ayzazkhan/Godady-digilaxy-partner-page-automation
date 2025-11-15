@@ -4,107 +4,128 @@ import google.generativeai as genai
 import random
 import time
 
-print("🚀 Starting SEO Content Generator...")
-print(f"📁 Current Directory: {os.getcwd()}")
+print("🚀 Starting content generator...")
+print(f"📁 Current directory: {os.getcwd()}")
 
-# Load Content.json
-try:
-    with open("content.json", "r", encoding="utf-8") as f:
-        config = json.load(f)
-    print("✅ content.json loaded successfully")
-except Exception as e:
-    print(f"❌ ERROR reading content.json: {e}")
-    exit(1)
-
-BASE_CONTENT = config["base_content"]
-DOMAIN = config["target_domain"]
-KEYWORDS = config["keywords"]
-TONE = config["tone"]
-
-# Gemini API Key
+# Gemini API Setup
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+
 if not GEMINI_API_KEY:
     print("❌ ERROR: GEMINI_API_KEY not found!")
     exit(1)
 
-# CONFIGURE API
-genai.configure(api_key=GEMINI_API_KEY)
+print("✅ Gemini API Key found")
 
-# NEW WORKING MODEL
-model = genai.GenerativeModel("gemini-1.5-flash")
+try:
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel('gemini-pro-latest')
+    print("✅ Using gemini-pro-latest model")
+except Exception as e:
+    print(f"❌ Error configuring Gemini: {e}")
+    exit(1)
 
-print("✅ Gemini model loaded: gemini-1.5-flash")
+DOMAIN = "hesiexamtaker.com"
 
-def generate_seo_contents():
-    CONTENT_COUNT = 175
-    print(f"🎯 Generating {CONTENT_COUNT} SEO contents...")
+KEYWORDS = [
+    "HESI exam preparation",
+    "nursing exam tips",
+    "medical test strategies",
+    "healthcare exam guide",
+    "nursing study materials",
+    "HESI A2 practice"
+]
 
-    results = []
 
-    for i in range(1, CONTENT_COUNT + 1):
+def generate_content_with_links():
+    """Generate content pieces with links"""
+
+    CONTENT_COUNT = 10  # Testing ke liye 10 pieces
+    print(f"🎯 Generating {CONTENT_COUNT} content pieces...")
+
+    all_generated_content = []
+
+    for i in range(CONTENT_COUNT):
         try:
             keyword = random.choice(KEYWORDS)
 
             prompt = f"""
-You are a senior SEO expert and professional medical content writer.
-Generate a unique 140–160 word article about "{keyword}".
+            Create a 150-word article about {keyword} for nursing students.
+            Include this link 2 times:
+            <a href='https://{DOMAIN}'>{DOMAIN}</a>
+            Make it educational and practical.
+            """
 
-RULES:
-- Use tone: {TONE}
-- Insert this link EXACTLY 2 times inside natural sentences:
-  <a href='https://{DOMAIN}'>{keyword}</a>
-
-- Do NOT repeat the domain name in naked form.
-- No bullet points.
-- 100% unique content.
-- Educational & helpful.
-- Single paragraph only.
-
-Base sample content for understanding:
-{BASE_CONTENT}
-
-Return only the article paragraph. No extra text.
-"""
-
-            print(f"📝 Generating {i}/{CONTENT_COUNT}: {keyword}")
+            print(f"📝 Generating {i + 1}/{CONTENT_COUNT}: {keyword}")
 
             response = model.generate_content(prompt)
             content = response.text.strip()
 
-            required_link = f"<a href='https://{DOMAIN}'>{keyword}</a>"
+            # Ensure content has links
+            required_link = f"<a href='https://{DOMAIN}'>{DOMAIN}</a>"
+            if content.count(required_link) < 2:
+                content += (
+                    f" For more resources, visit {required_link}. "
+                    f"Get expert help at {required_link}."
+                )
+
             link_count = content.count(required_link)
 
-            # Ensure exactly 2 links
-            while link_count < 2:
-                content += f" Learn more at <a href='https://{DOMAIN}'>{keyword}</a>."
-                link_count += 1
-
-            results.append({
-                "id": i,
+            all_generated_content.append({
+                "id": i + 1,
                 "keyword": keyword,
                 "content": content,
-                "links": link_count,
-                "words": len(content.split())
+                "links_count": link_count,
+                "word_count": len(content.split())
             })
 
-            time.sleep(0.8)
+            print(f"✅ {i + 1}/{CONTENT_COUNT} - Links: {link_count}")
+
+            time.sleep(2)
 
         except Exception as e:
-            print(f"❌ Error generating content {i}: {e}")
+            print(f"❌ Error {i + 1}: {e}")
             continue
 
-    return results
+    # SAVE WITH STRICT ERROR HANDLING
+    try:
+        print("💾 Saving to generated_content.json...")
+
+        with open('generated_content.json', 'w', encoding='utf-8') as f:
+            json.dump(all_generated_content, f, indent=2, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+
+        if os.path.exists('generated_content.json'):
+            file_size = os.path.getsize('generated_content.json')
+            print(f"✅ File saved! Size: {file_size} bytes")
+
+            with open('generated_content.json', 'r', encoding='utf-8') as f:
+                saved_content = f.read()
+                verify_data = json.loads(saved_content)
+
+            print(f"✅ Verification: {len(verify_data)} items, {len(saved_content)} characters")
+
+            if len(verify_data) > 0:
+                print(f"🎉 SUCCESS: Generated {len(verify_data)} content pieces!")
+                print(f"📊 Total links: {sum(item['links_count'] for item in verify_data)}")
+            else:
+                print("❌ WARNING: File is empty!")
+
+        else:
+            print("❌ ERROR: File was not created!")
+
+    except Exception as e:
+        print(f"❌ Error saving file: {e}")
+        backup_data = [{
+            "id": 1,
+            "keyword": "backup",
+            "content": f"Test content with <a href='https://{DOMAIN}'>{DOMAIN}</a> links.",
+            "links_count": 1
+        }]
+        with open('generated_content.json', 'w') as f:
+            json.dump(backup_data, f)
+        print("⚠️ Created backup file")
 
 
-# SAVE RESULTS
-generated = generate_seo_contents()
-
-try:
-    with open("generated_content.json", "w", encoding="utf-8") as f:
-        json.dump(generated, f, indent=2, ensure_ascii=False)
-
-    print(f"🎉 SUCCESS! Generated {len(generated)} articles.")
-    print("📁 File saved: generated_content.json")
-
-except Exception as e:
-    print(f"❌ Error saving output: {e}")
+if __name__ == "__main__":
+    generate_content_with_links()
