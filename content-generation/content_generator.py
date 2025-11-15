@@ -19,7 +19,7 @@ except Exception as e:
 base_content = config.get("base_content")
 domain = config.get("target_domain")
 keywords = config.get("keywords", [])
-tone = config.get("tone", "natural and educational")
+tone = config.get("tone", "professional and educational")
 
 if not base_content or not domain:
     print("❌ ERROR: base_content or domain missing in content.json")
@@ -27,7 +27,7 @@ if not base_content or not domain:
 
 print("✅ Loaded base content config")
 
-# DeepSeek API
+# DeepSeek API Configuration
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
 
 if not DEEPSEEK_API_KEY:
@@ -45,74 +45,69 @@ if len(links) == 0:
 
 print(f"🔗 Found {len(links)} links in base content")
 
-
 # ---------------------------
-# DEEPSEEK REQUEST FUNCTION
-# ---------------------------
-def deepseek_generate(prompt):
-    url = "https://api.deepseek.com/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": "deepseek-chat",
-        "messages": [
-            {"role": "user", "content": prompt}
-        ]
-    }
-
-    res = requests.post(url, json=payload, headers=headers)
-    out = res.json()
-
-    return out["choices"][0]["message"]["content"]
-
-
-# ---------------------------
-# CONTENT GENERATOR FUNCTION
+# DEEPSEEK CONTENT GENERATOR FUNCTION
 # ---------------------------
 def generate_single_content(keyword):
     prompt = f"""
 You are an SEO expert and professional human content writer.
 
-Write a short promotional SEO paragraph (35–45 words) based on: **{keyword}**.
+Write a short promotional SEO paragraph (35–45 words) based on the topic: **{keyword}**.
 
-STYLE:
-- Natural human tone
-- Nursing exam support type tone
-- Unique, human-like, non-AI text
-- Must include these links exactly once:
-  {json.dumps(links)}
+STYLE + RULES:
+- Natural human tone, no robotic or AI pattern.
+- Tone must match Hesiexamtaker services (exam help, guided preparation, confidentiality, expert support).
+- Domain name **{domain}** ko exact repeat nahi karna, but concept of "HESI exam help, expert assistance, nursing test support" ko naturally use karna.
+- The content should feel like a short promotional description, similar in style to:
 
-Output only the final paragraph.
+Examples:
+1. "Pass your HESI pharmacology practice exam with ideal grades. Our platform offers confidential test-taking and focused practice to master this difficult section for your nursing school success."
+2. "Pay someone to take my HESI exam is a service that connects nursing students with expert professionals who provide guided help, preparation, and personalized support for better exam performance."
+
+MANDATORY:
+- Include these links exactly once each inside the content:
+  {json.dumps(links, indent=2)}
+
+OUTPUT:
+Only the final content. No explanation. No formatting.
+
+Base content reference:
+{base_content}
 """
 
-    url = "https://api.deepseek.com/v1/chat/completions"
-
-    headers = {
-        "Authorization": f"Bearer {os.environ['DEEPSEEK_API_KEY']}",
-        "Content-Type": "application/json"
-    }
-
-    body = {
-        "model": "deepseek-chat",
-        "messages": [
-            {"role": "user", "content": prompt}
-        ]
-    }
-
-    response = requests.post(url, headers=headers, json=body).json()
-
-    # New DeepSeek output style
     try:
-        return response["choices"][0]["message"]["content"].strip()
-    except:
-        # fallback for DeepSeek-R1 / DeepSeek V3 output format
-        if "output_text" in response:
-            return response["output_text"].strip()
-
-        raise Exception("Invalid DeepSeek API Response: " + str(response))
-
+        headers = {
+            "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": "deepseek-chat",
+            "messages": [
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.7,
+            "max_tokens": 500
+        }
+        
+        response = requests.post(
+            "https://api.deepseek.com/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=60
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            content = result["choices"][0]["message"]["content"].strip()
+            return content
+        else:
+            print(f"❌ API Error: {response.status_code} - {response.text}")
+            return f"Error generating content for {keyword}"
+            
+    except Exception as e:
+        print(f"❌ API Call Failed: {e}")
+        return f"Error generating content for {keyword}"
 
 # ---------------------------
 # MAIN LOOP
@@ -143,7 +138,7 @@ for i in range(TOTAL):
 
         print(f"✅ Generated item {i+1}/{TOTAL}")
 
-        time.sleep(0.5)  # DeepSeek is fast, delay can be lower
+        time.sleep(1.5)
 
     except Exception as e:
         print(f"❌ Error in item {i+1}: {e}")
