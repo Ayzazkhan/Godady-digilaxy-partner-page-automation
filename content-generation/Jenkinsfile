@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        GEMINI_API_KEY = credentials('api-key')
+        GEMINI_API_KEY = credentials('deepsekkapi')
     }
 
     stages {
