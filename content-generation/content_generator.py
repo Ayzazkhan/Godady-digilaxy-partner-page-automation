@@ -51,19 +51,28 @@ print(f"🔗 Found {len(links)} links in base content")
 # CONTENT GENERATOR FUNCTION
 # ---------------------------
 def generate_single_content(keyword):
-    prompt = f"""
-You are an SEO and content writing expert.
-Write a **high quality**, **natural**, **human-like** mini article (30–40 words).
-The article must be based on the topic: **{keyword}**.
+prompt = f"""
+You are an SEO expert and professional human content writer.
 
-IMPORTANT RULES:
-- Content MUST sound 100% natural. No AI pattern, no robotic tone.
-- Use the tone: **{tone}**.
-- Include these exact links inside the content exactly once each:
+Write a short promotional SEO paragraph (35–45 words) based on the topic: **{keyword}**.
+
+STYLE + RULES:
+- Natural human tone, no robotic or AI pattern.
+- Tone must match Hesiexamtaker services (exam help, guided preparation, confidentiality, expert support).
+- Domain name **{domain}** ko exact repeat nahi karna, but concept of "HESI exam help, expert assistance, nursing test support" ko naturally use karna.
+- The content should feel like a short promotional description, similar in style to:
+
+Examples:
+1. "Pass your HESI pharmacology practice exam with ideal grades. Our platform offers confidential test-taking and focused practice to master this difficult section for your nursing school success."
+2. "Pay someone to take my HESI exam is a service that connects nursing students with expert professionals who provide guided help, preparation, and personalized support for better exam performance."
+
+MANDATORY:
+- Include these links exactly once each inside the content:
   {json.dumps(links, indent=2)}
-- Domain name **{domain}** ko exact repeat nahi karna. Us se related keywords use karo.
-- Content must be unique, logically structured, and not detectable as AI.
-- Output ONLY the final content, no explanation.
+
+OUTPUT:
+Only the final content. No explanation. No formatting.
+"""
 
 Base content reference:
 {base_content}
