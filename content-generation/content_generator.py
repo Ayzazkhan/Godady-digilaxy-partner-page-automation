@@ -3,6 +3,7 @@ import os
 import google.generativeai as genai
 import random
 import time
+import re
 
 print("🚀 Starting SEO content generator...")
 print(f"📁 Current directory: {os.getcwd()}")
@@ -37,8 +38,7 @@ genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-pro-latest")
 print("✅ Gemini model initialized (gemini-pro-latest)")
 
-# Required link structure from base_content
-import re
+# Extract links
 links = re.findall(r"<a href='https://[^']+'[^>]*>[^<]+</a>", base_content)
 
 if len(links) == 0:
@@ -47,11 +47,12 @@ if len(links) == 0:
 
 print(f"🔗 Found {len(links)} links in base content")
 
+
 # ---------------------------
 # CONTENT GENERATOR FUNCTION
 # ---------------------------
 def generate_single_content(keyword):
-prompt = f"""
+    prompt = f"""
 You are an SEO expert and professional human content writer.
 
 Write a short promotional SEO paragraph (35–45 words) based on the topic: **{keyword}**.
@@ -72,7 +73,6 @@ MANDATORY:
 
 OUTPUT:
 Only the final content. No explanation. No formatting.
-
 
 Base content reference:
 {base_content}
@@ -97,7 +97,7 @@ for i in range(TOTAL):
 
         content = generate_single_content(keyword)
 
-        # Re-check links
+        # Ensure all required links are included
         for link in links:
             if link not in content:
                 content += f" {link}"
@@ -123,7 +123,7 @@ try:
     OUTPUT_PATH = os.path.join(os.getcwd(), "output.json")
 
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
-     json.dump(generated_data, f, indent=2, ensure_ascii=False)
+        json.dump(generated_data, f, indent=2, ensure_ascii=False)
 
     print("🎉 SUCCESS! 175 SEO contents saved in output.json")
 
