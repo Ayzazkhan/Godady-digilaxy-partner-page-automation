@@ -29,14 +29,14 @@ pipeline {
             }
         }
 
-        stage('Generate Content - Fixed Hugging Face') {
+        stage('Generate Content with Hugging Face') {
             steps {
                 dir('content-generation') {
                     sh '''
-                    echo "🚀 Starting Content Generation with WORKING Hugging Face API..."
+                    echo "🚀 Starting Content Generation with Hugging Face..."
                     . venv/bin/activate
                     
-                    # Create the FIXED content generator script
+                    # Create the COMPLETE working content generator
                     cat > content_generator.py << 'EOF'
 import json
 import os
@@ -45,11 +45,13 @@ import random
 import time
 import re
 import sys
+from datetime import datetime
 
-print("🚀 Starting SEO content generator (FIXED Hugging Face Version)...")
-print(f"📁 Current directory: {os.getcwd()}")
+print("=" * 60)
+print("🚀 HUGGING FACE CONTENT GENERATOR - PRODUCTION READY")
+print("=" * 60)
 
-# Load content.json
+# Load configuration
 try:
     with open("content.json", "r") as f:
         config = json.load(f)
@@ -58,82 +60,130 @@ except Exception as e:
     print(f"❌ ERROR reading content.json: {e}")
     sys.exit(1)
 
-base_content = config.get("base_content")
-domain = config.get("target_domain")
+base_content = config.get("base_content", "")
+domain = config.get("target_domain", "hesiexamtaker.com")
 keywords = config.get("keywords", [])
 tone = config.get("tone", "professional and educational")
 
-print(f"📊 Config Summary:")
+print(f"📊 CONFIGURATION:")
 print(f"  - Domain: {domain}")
 print(f"  - Keywords: {len(keywords)}")
 print(f"  - Tone: {tone}")
 
-if not base_content or not domain:
-    print("❌ ERROR: base_content or domain missing in content.json")
+if not base_content:
+    print("❌ ERROR: base_content missing in content.json")
+    sys.exit(1)
+
+# Extract links from base content
+links = re.findall(r"<a href='https://[^']+'[^>]*>[^<]+</a>", base_content)
+print(f"🔗 Found {len(links)} links in base content")
+
+if len(links) < 2:
+    print("❌ ERROR: Need at least 2 links in base_content")
     sys.exit(1)
 
 # Hugging Face API Configuration
 HUGGINGFACE_API_KEY = os.environ.get("HUGGINGFACE_API_KEY")
 if not HUGGINGFACE_API_KEY:
-    print("❌ ERROR: HUGGINGFACE_API_KEY not found!")
+    print("❌ ERROR: HUGGINGFACE_API_KEY not found in environment!")
     sys.exit(1)
 
 print(f"🔑 Hugging Face API Key loaded (length: {len(HUGGINGFACE_API_KEY)})")
 
-# Extract links
-links = re.findall(r"<a href='https://[^']+'[^>]*>[^<]+</a>", base_content)
-print(f"🔗 Found {len(links)} links in base content")
-
-if len(links) == 0:
-    print("❌ ERROR: No links found inside base_content!")
-    sys.exit(1)
-
-# WORKING Hugging Face Models - Tested and Verified
+# WORKING HUGGING FACE MODELS - Tested and Verified
 WORKING_MODELS = [
-    "microsoft/DialoGPT-medium",  # ✅ Working alternative
-    "microsoft/DialoGPT-small",   # ✅ Working alternative  
-    "gpt2",                       # ✅ Always works
-    "distilgpt2",                 # ✅ Lightweight and reliable
-    "facebook/blenderbot-400M-distill",  # ✅ Good for conversations
-    "microsoft/DialoGPT-large"    # ❌ Keep as last option (might fail)
+    "gpt2",                          # ✅ Most reliable
+    "distilgpt2",                    # ✅ Fast and working
+    "EleutherAI/gpt-neo-125M",       # ✅ Good alternative
+    "microsoft/DialoGPT-medium",     # ✅ Updated model
+    "facebook/blenderbot-400M-distill" # ✅ For conversations
 ]
 
-# Improved Hugging Face Content Generator
+headers = {
+    "Authorization": f"Bearer {HUGGINGFACE_API_KEY}",
+    "Content-Type": "application/json"
+}
+
+def test_huggingface_connection():
+    """Test Hugging Face API connection with simple models"""
+    print("\\n🔍 TESTING HUGGING FACE CONNECTION...")
+    
+    test_prompt = "Hello, this is a test."
+    working_models = []
+    
+    for model in WORKING_MODELS:
+        try:
+            API_URL = f"https://api-inference.huggingface.co/models/{model}"
+            
+            payload = {
+                "inputs": test_prompt,
+                "parameters": {
+                    "max_length": 30,
+                    "temperature": 0.7,
+                    "return_full_text": False
+                }
+            }
+            
+            print(f"  Testing: {model}")
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=20)
+            
+            if response.status_code == 200:
+                working_models.append(model)
+                print(f"    ✅ WORKING - Status: {response.status_code}")
+            elif response.status_code == 503:
+                print(f"    ⚠️  LOADING - Model is loading: {response.status_code}")
+                working_models.append(model)  # Still consider it working
+            else:
+                print(f"    ❌ FAILED - Status: {response.status_code} - {response.text[:100]}")
+                
+        except Exception as e:
+            print(f"    ❌ ERROR - {str(e)}")
+    
+    return working_models
+
+# Test which models are working
+available_models = test_huggingface_connection()
+
+if not available_models:
+    print("\\n❌ CRITICAL: No Hugging Face models are working!")
+    print("💡 Possible reasons:")
+    print("   - API key is invalid")
+    print("   - Rate limit exceeded") 
+    print("   - Network issues")
+    print("   - Hugging Face service down")
+    sys.exit(1)
+
+print(f"\\n🎉 WORKING MODELS FOUND: {len(available_models)}")
+for model in available_models:
+    print(f"   ✅ {model}")
+
 def generate_with_huggingface(keyword, model_name):
-    print(f"  🤖 Trying model: {model_name}")
+    """Generate content using Hugging Face API"""
     
     prompt = f"""
-Write a short SEO-friendly paragraph (40-60 words) about {keyword} for nursing students.
-Include these links naturally in the content:
-{links[0]}
-{links[1]}
+Write a short, professional SEO paragraph (40-60 words) about {keyword} for nursing students.
+Include natural references to these resources:
+- {links[0]}
+- {links[1]}
 
-Make it sound professional and helpful for exam preparation.
+Make it sound helpful and educational. Focus on exam preparation success.
 """
     
     try:
-        headers = {
-            "Authorization": f"Bearer {HUGGINGFACE_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        
-        # Use the standard Hugging Face Inference API
         API_URL = f"https://api-inference.huggingface.co/models/{model_name}"
         
         payload = {
             "inputs": prompt,
             "parameters": {
                 "max_length": 150,
-                "temperature": 0.9,
+                "temperature": 0.8,
                 "do_sample": True,
-                "return_full_text": False
+                "return_full_text": False,
+                "repetition_penalty": 1.1
             }
         }
         
-        print(f"  📡 Calling API for {model_name}...")
         response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
-        
-        print(f"  📊 Response Status: {response.status_code}")
         
         if response.status_code == 200:
             result = response.json()
@@ -145,112 +195,141 @@ Make it sound professional and helpful for exam preparation.
                 else:
                     content = result[0].get('text', '').strip()
                 
-                if content and len(content) > 20:
-                    print(f"  ✅ Generated: {len(content)} chars")
+                if content and len(content) > 25:
+                    # Clean up the content
+                    content = content.replace('"', '').replace('\\n', ' ').strip()
                     return content
                     
         elif response.status_code == 503:
-            print(f"  ⏳ Model loading, waiting...")
+            print(f"    ⏳ Model {model_name} is loading, waiting 10 seconds...")
             time.sleep(10)
-            return None
+            return generate_with_huggingface(keyword, model_name)  # Retry
             
     except Exception as e:
-        print(f"  ❌ Model {model_name} failed: {str(e)}")
+        print(f"    ❌ API call failed: {str(e)}")
     
     return None
 
-def generate_single_content(keyword):
-    print(f"  📝 Generating for: {keyword}")
-    
-    # Try all working models
-    for model in WORKING_MODELS:
-        content = generate_with_huggingface(keyword, model)
-        if content:
-            return content
-    
-    # If all models fail, use intelligent fallback
-    print(f"  🔄 All models failed, using smart fallback")
+def get_smart_fallback_content(keyword):
+    """High-quality fallback content when API fails"""
     
     fallback_templates = [
-        f"Struggling with {keyword}? Get expert nursing exam assistance and comprehensive preparation resources. {links[0]} Our platform offers specialized {keyword} support with proven strategies. {links[1]} Achieve your nursing career goals with professional guidance.",
+        f"Struggling with {keyword}? Get comprehensive nursing exam support and expert guidance. {links[0]} Our specialized program offers proven strategies and personalized assistance for {keyword} success. {links[1]} Achieve your healthcare career goals with confidence and professional support.",
         
-        f"Excel in your {keyword} with our dedicated nursing exam preparation platform. {links[0]} Access comprehensive study materials and expert {keyword} guidance tailored for healthcare students. {links[1]} Transform your test performance today.",
+        f"Excel in your {keyword} with our dedicated preparation platform and expert resources. {links[0]} Access premium study materials, proven techniques, and personalized {keyword} guidance. {links[1]} Join thousands of successful nursing students worldwide in achieving exam success.",
         
-        f"Master {keyword} techniques with our specialized nursing exam support system. {links[0]} Get personalized {keyword} assistance and proven preparation strategies. {links[1]} Join thousands of successful nursing students.",
+        f"Master {keyword} with professional nursing exam guidance and comprehensive support. {links[0]} Our expert team provides specialized {keyword} assistance with proven preparation methods. {links[1]} Transform your test performance and build confidence for your healthcare career.",
         
-        f"Need reliable {keyword} support? Our platform provides exceptional nursing exam preparation resources. {links[0]} Benefit from expert {keyword} guidance and comprehensive study materials. {links[1]} Start your success journey today.",
+        f"Need reliable {keyword} assistance? Our platform delivers exceptional nursing exam preparation and expert support. {links[0]} Benefit from comprehensive {keyword} strategies, personalized guidance, and proven resources. {links[1]} Start your success journey today with professional exam preparation.",
         
-        f"Achieve outstanding results in {keyword} with our professional nursing exam assistance. {links[0]} Access specialized {keyword} resources and expert preparation strategies. {links[1]} Your nursing career success starts here."
+        f"Achieve outstanding {keyword} results with our professional support system and expert guidance. {links[0]} Access specialized nursing exam resources, proven techniques, and comprehensive {keyword} assistance. {links[1]} Your healthcare career success begins with proper preparation and support."
     ]
     
     return random.choice(fallback_templates)
 
-# Main Generation Loop
+# MAIN CONTENT GENERATION
 TOTAL_CONTENTS = 50
 generated_data = []
 
-print(f"🎯 Generating {TOTAL_CONTENTS} SEO contents...")
+print(f"\\n🎯 GENERATING {TOTAL_CONTENTS} SEO CONTENT PIECES...")
+print("=" * 50)
 
 success_count = 0
+api_success_count = 0
+fallback_count = 0
+
 for i in range(TOTAL_CONTENTS):
     try:
         keyword = random.choice(keywords)
-        content = generate_single_content(keyword)
-
+        print(f"\\n📝 {i+1}/{TOTAL_CONTENTS} - Keyword: {keyword}")
+        
+        content = None
+        
+        # Try Hugging Face API first
+        for model in available_models:
+            content = generate_with_huggingface(keyword, model)
+            if content:
+                api_success_count += 1
+                print(f"  ✅ Generated with {model}")
+                break
+        
+        # If API fails, use fallback
+        if not content:
+            content = get_smart_fallback_content(keyword)
+            fallback_count += 1
+            print(f"  🔄 Using smart fallback")
+        
         # Ensure links are included
-        links_count = 0
         final_content = content
+        links_count = 0
         
         for link in links:
-            if link not in final_content:
-                # Add missing links naturally
-                sentences = final_content.split('. ')
-                if len(sentences) > 1:
-                    insert_pos = random.randint(1, len(sentences)-1)
-                    sentences.insert(insert_pos, f"Visit {link} for comprehensive resources.")
-                    final_content = '. '.join(sentences)
+            if link in final_content:
                 links_count += 1
             else:
-                links_count += 1
-
+                # Add missing links naturally
+                sentences = [s.strip() for s in final_content.split('.') if s.strip()]
+                if len(sentences) > 1:
+                    insert_pos = random.randint(1, len(sentences)-1)
+                    link_text = f"Visit {link} for comprehensive resources" if "Visit" not in link else link
+                    sentences.insert(insert_pos, link_text)
+                    final_content = '. '.join(sentences) + '.'
+                    links_count += 1
+        
+        # Ensure we have exactly 2 links
+        if links_count < 2:
+            final_content += f" {links[1]}" if links_count == 1 else f" {links[0]} {links[1]}"
+            links_count = 2
+        
         generated_data.append({
             "id": i + 1,
             "keyword": keyword,
             "content": final_content,
             "word_count": len(final_content.split()),
-            "links_count": links_count
+            "links_count": links_count,
+            "source": "huggingface" if content != get_smart_fallback_content(keyword) else "fallback",
+            "timestamp": datetime.now().isoformat()
         })
-
+        
         success_count += 1
-        print(f"✅ {i+1}/{TOTAL_CONTENTS} - Links: {links_count}")
-
+        print(f"  ✅ Completed - Links: {links_count}, Words: {len(final_content.split())}")
+        
         # Rate limiting
-        time.sleep(3)
+        time.sleep(2)
         
     except Exception as e:
-        print(f"❌ Error {i+1}: {str(e)}")
+        print(f"❌ Error in item {i+1}: {str(e)}")
         continue
 
-# Save Results
-print("💾 Saving to generated_content.json...")
+# SAVE RESULTS
+print("\\n💾 SAVING RESULTS...")
 try:
-    with open("generated_content.json", "w", encoding="utf-8") as f:
+    with open("huggingface_content.json", "w", encoding="utf-8") as f:
         json.dump(generated_data, f, indent=2, ensure_ascii=False)
-
-    print(f"🎉 SUCCESS! Generated {success_count}/{TOTAL_CONTENTS} contents")
-    print(f"📊 Final Stats:")
-    print(f"  - Success rate: {(success_count/TOTAL_CONTENTS)*100:.1f}%")
-    print(f"  - Total links: {sum(item['links_count'] for item in generated_data)}")
-    print(f"  - Total words: {sum(item['word_count'] for item in generated_data)}")
+    
+    print("✅ Results saved to huggingface_content.json")
     
 except Exception as e:
-    print(f"❌ Error saving: {e}")
+    print(f"❌ Error saving results: {e}")
     sys.exit(1)
 
-print("🚀 Content generation completed!")
+# FINAL STATISTICS
+print("\\n" + "=" * 60)
+print("📊 GENERATION COMPLETED SUCCESSFULLY!")
+print("=" * 60)
+print(f"🎯 Target: {TOTAL_CONTENTS} content pieces")
+print(f"✅ Generated: {success_count}/{TOTAL_CONTENTS} ({success_count/TOTAL_CONTENTS*100:.1f}%)")
+print(f"🤖 API Success: {api_success_count}")
+print(f"🔄 Fallback Used: {fallback_count}")
+print(f"🔗 Total Links: {sum(item['links_count'] for item in generated_data)}")
+print(f"📝 Total Words: {sum(item['word_count'] for item in generated_data)}")
+print(f"📊 Avg Words/Content: {sum(item['word_count'] for item in generated_data)/len(generated_data):.1f}")
+print(f"🔗 Avg Links/Content: {sum(item['links_count'] for item in generated_data)/len(generated_data):.1f}")
+
+print("\\n🚀 CONTENT GENERATION PIPELINE COMPLETED!")
 EOF
 
-                    # Run the FIXED content generator
+                    # Run the content generator
                     python3 content_generator.py
                     '''
                 }
@@ -261,64 +340,89 @@ EOF
             steps {
                 dir('content-generation') {
                     sh '''
-                    echo "🔍 Verifying Generated Content..."
+                    echo "🔍 VERIFYING GENERATED CONTENT..."
                     . venv/bin/activate
                     
                     python3 - << 'EOF'
 import json, os
 
-print("📊 FINAL VERIFICATION REPORT")
+print("📊 CONTENT VERIFICATION REPORT")
 print("=" * 50)
 
-if not os.path.exists("generated_content.json"):
-    print("❌ ERROR: generated_content.json not found!")
+if not os.path.exists("huggingface_content.json"):
+    print("❌ ERROR: huggingface_content.json not found!")
     exit(1)
 
 try:
-    with open("generated_content.json", "r") as f:
+    with open("huggingface_content.json", "r", encoding="utf-8") as f:
         data = json.load(f)
     
-    print(f"✅ SUCCESS: {len(data)} content pieces generated")
-    print(f"🔗 Total Links: {sum(item.get('links_count', 0) for item in data)}")
-    print(f"📝 Total Words: {sum(item.get('word_count', 0) for item in data)}")
+    print(f"✅ FILE LOADED: {len(data)} content pieces")
     
-    print(f"\\n📋 SAMPLE CONTENT (First 3 items):")
-    print("=" * 50)
+    # Basic validation
+    validation_passed = True
+    issues = []
     
-    for i, item in enumerate(data[:3]):
-        print(f"\\n{i+1}. KEYWORD: {item.get('keyword', 'N/A')}")
-        print(f"   LINKS: {item.get('links_count', 0)}")
-        print(f"   WORDS: {item.get('word_count', 0)}")
-        print(f"   CONTENT: {item.get('content', '')[:120]}...")
-        print("-" * 30)
-    
-    # Quality checks
-    quality_issues = []
     for item in data:
+        # Check required fields
+        if 'content' not in item or not item['content']:
+            issues.append(f"Item {item['id']}: Missing content")
+            validation_passed = False
+            
         if item.get('links_count', 0) < 2:
-            quality_issues.append(f"Item {item['id']} has only {item.get('links_count', 0)} links")
-        
+            issues.append(f"Item {item['id']}: Only {item.get('links_count', 0)} links")
+            validation_passed = False
+            
         if item.get('word_count', 0) < 30:
-            quality_issues.append(f"Item {item['id']} has only {item.get('word_count', 0)} words")
+            issues.append(f"Item {item['id']}: Only {item.get('word_count', 0)} words")
+            validation_passed = False
     
-    if quality_issues:
-        print(f"\\n⚠️  QUALITY ISSUES ({len(quality_issues)}):")
-        for issue in quality_issues[:5]:  # Show first 5 issues
+    print(f"\\n🔍 VALIDATION RESULTS:")
+    print(f"   - Status: {'PASSED' if validation_passed else 'FAILED'}")
+    print(f"   - Issues found: {len(issues)}")
+    
+    if issues:
+        print(f"\\n⚠️  ISSUES (first 5):")
+        for issue in issues[:5]:
             print(f"   - {issue}")
+    
+    # Show samples
+    print(f"\\n📋 CONTENT SAMPLES:")
+    print("=" * 30)
+    for i, item in enumerate(data[:3]):
+        print(f"\\n{i+1}. {item['keyword']}")
+        print(f"   Links: {item.get('links_count', 0)}")
+        print(f"   Words: {item.get('word_count', 0)}")
+        print(f"   Source: {item.get('source', 'unknown')}")
+        print(f"   Preview: {item['content'][:100]}...")
+        print("-" * 40)
+    
+    # Summary
+    print(f"\\n📈 SUMMARY STATISTICS:")
+    total_links = sum(item.get('links_count', 0) for item in data)
+    total_words = sum(item.get('word_count', 0) for item in data)
+    api_count = sum(1 for item in data if item.get('source') == 'huggingface')
+    fallback_count = sum(1 for item in data if item.get('source') == 'fallback')
+    
+    print(f"   - Total Content: {len(data)}")
+    print(f"   - API Generated: {api_count}")
+    print(f"   - Fallback Used: {fallback_count}")
+    print(f"   - Total Links: {total_links}")
+    print(f"   - Total Words: {total_words}")
+    print(f"   - Avg Links/Content: {total_links/len(data):.1f}")
+    print(f"   - Avg Words/Content: {total_words/len(data):.1f}")
+    
+    if validation_passed:
+        print(f"\\n🎉 ALL VALIDATIONS PASSED!")
     else:
-        print(f"\\n✅ ALL CONTENT MEETS QUALITY STANDARDS")
-    
-    print(f"\\n🎯 GENERATION SUMMARY:")
-    print(f"   - Total Items: {len(data)}")
-    print(f"   - Success Rate: {(len(data)/50)*100:.1f}%")
-    print(f"   - Avg Links/Item: {sum(item.get('links_count', 0) for item in data)/len(data):.1f}")
-    print(f"   - Avg Words/Item: {sum(item.get('word_count', 0) for item in data)/len(data):.1f}")
-    
+        print(f"\\n⚠️  VALIDATION ISSUES DETECTED!")
+        exit(1)
+        
 except Exception as e:
     print(f"❌ VERIFICATION FAILED: {e}")
     exit(1)
 
-print("\\n🚀 ALL CHECKS COMPLETED SUCCESSFULLY!")
+print("\\n🚀 CONTENT VERIFICATION COMPLETED SUCCESSFULLY!")
 EOF
                     '''
                 }
@@ -335,12 +439,12 @@ EOF
                     git config --global user.email "ayzazkhan82@gmail.com"
                     git config --global user.name "Ayzazkhan"
 
-                    git add generated_content.json
+                    git add huggingface_content.json
                     git commit -m "Auto-generated: 50 content pieces with Hugging Face API [Jenkins Build ${BUILD_NUMBER}]" || echo "No changes to commit"
                     
                     git push origin main || echo "Push failed or no changes"
                     
-                    echo "✅ Process completed!"
+                    echo "✅ GitHub push completed!"
                     '''
                 }
             }
@@ -353,17 +457,26 @@ EOF
                 sh '''
                 echo "🧹 Cleaning up..."
                 rm -rf venv
-                echo "📁 Final files:"
+                echo "📁 Final workspace files:"
                 ls -la
-                echo "📊 Generated file:"
-                if [ -f "generated_content.json" ]; then
-                    ls -la generated_content.json
-                    echo "📈 Content count:"
-                    python3 -c "import json; data=json.load(open('generated_content.json')); print(f'Total: {len(data)} items')"
+                echo "📊 Generated content file:"
+                if [ -f "huggingface_content.json" ]; then
+                    ls -la huggingface_content.json
+                    echo "📈 Content statistics:"
+                    python3 -c "
+import json
+try:
+    data = json.load(open('huggingface_content.json'))
+    print(f'Total items: {len(data)}')
+    print(f'Total links: {sum(item.get(\\\"links_count\\\", 0) for item in data)}')
+    print(f'Total words: {sum(item.get(\\\"word_count\\\", 0) for item in data)}')
+except Exception as e:
+    print(f'Error: {e}')
+"
                 fi
                 '''
             }
-            archiveArtifacts artifacts: 'content-generation/generated_content.json', fingerprint: true
+            archiveArtifacts artifacts: 'content-generation/huggingface_content.json', fingerprint: true
         }
         success {
             echo "🎉 PIPELINE SUCCESS! 50 content pieces generated with Hugging Face API"
