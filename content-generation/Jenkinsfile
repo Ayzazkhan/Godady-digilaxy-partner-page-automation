@@ -1,10 +1,6 @@
 pipeline {
     agent any
 
-    environment {
-        HUGGINGFACE_API_KEY = credentials('hugging-face')
-    }
-
     stages {
         stage('Checkout Code') {
             steps {
@@ -14,7 +10,7 @@ pipeline {
             }
         }
 
-        stage('Setup Python Environment') {
+        stage('Setup Environment') {
             steps {
                 dir('content-generation') {
                     sh '''
@@ -22,33 +18,35 @@ pipeline {
                     python3 -m venv venv
                     . venv/bin/activate
                     pip install --upgrade pip
-                    pip install requests pillow
+                    pip install requests beautifulsoup4 urllib3 fake-useragent
                     echo "✅ Python packages installed"
                     '''
                 }
             }
         }
 
-        stage('Generate Content with NEW Models') {
+        stage('Website Analysis & Content Generation') {
             steps {
                 dir('content-generation') {
                     sh '''
-                    echo "🚀 Starting Content Generation with NEW Hugging Face Models..."
+                    echo "🚀 Starting Website Analysis & Content Generation..."
                     . venv/bin/activate
                     
-                    # Create content generator with NEW models
-                    cat > content_generator.py << 'EOF'
+                    # Create the SMART CONTENT GENERATOR
+                    cat > smart_content_generator.py << 'EOF'
 import json
 import os
-import requests
 import random
 import time
 import re
-import sys
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse
 from datetime import datetime
+from fake_useragent import UserAgent
 
 print("=" * 70)
-print("🚀 HUGGING FACE CONTENT GENERATOR - NEW MODELS EDITION")
+print("🚀 SMART CONTENT GENERATOR - WEBSITE ANALYSIS EDITION")
 print("=" * 70)
 
 # Load configuration
@@ -58,335 +56,266 @@ try:
     print("✅ content.json loaded successfully")
 except Exception as e:
     print(f"❌ ERROR reading content.json: {e}")
-    sys.exit(1)
+    exit(1)
 
-base_content = config.get("base_content", "")
 domain = config.get("target_domain", "hesiexamtaker.com")
 keywords = config.get("keywords", [])
-tone = config.get("tone", "professional and educational")
+base_content = config.get("base_content", "")
 
 print(f"📊 CONFIGURATION:")
 print(f"  - Domain: {domain}")
 print(f"  - Keywords: {len(keywords)}")
-print(f"  - Base Content Length: {len(base_content)} characters")
-
-if not base_content:
-    print("❌ ERROR: base_content missing in content.json")
-    sys.exit(1)
 
 # Extract links from base content
 links = re.findall(r"<a href='https://[^']+'[^>]*>[^<]+</a>", base_content)
 print(f"🔗 Found {len(links)} links in base content")
 
-if len(links) < 2:
-    print("❌ ERROR: Need at least 2 links in base_content")
-    sys.exit(1)
-
-# Hugging Face API Configuration
-HUGGINGFACE_API_KEY = os.environ.get("HUGGINGFACE_API_KEY")
-if not HUGGINGFACE_API_KEY:
-    print("❌ ERROR: HUGGINGFACE_API_KEY not found in environment!")
-    sys.exit(1)
-
-print(f"🔑 Hugging Face API Key loaded")
-
-# NEW WORKING MODELS - Tumhare diye hue models
-NEW_WORKING_MODELS = [
-    "deepseek-ai/DeepSeek-OCR",           # ✅ Text generation model
-    "MiniMaxAI/MiniMax-M2",               # ✅ MiniMax ka latest model
-    "moonshotai/Kimi-K2-Thinking",        # ✅ Thinking capable model
-    "PaddlePaddle/PaddleOCR-VL",          # ✅ Vision + Language model
-    "dx8152/Qwen-Edit-2509-Multiple-angles", # ✅ Qwen editing model
-    "maya-research/maya1"                 # ✅ Research model
-]
-
-headers = {
-    "Authorization": f"Bearer {HUGGINGFACE_API_KEY}",
-    "Content-Type": "application/json"
-}
-
-def test_specific_models():
-    """Test the specific models you found"""
-    print("\\n🔍 TESTING YOUR SPECIFIC MODELS...")
-    
-    test_prompt = "Write a short paragraph about nursing exam preparation."
-    working_models = []
-    
-    for model in NEW_WORKING_MODELS:
-        try:
-            API_URL = f"https://api-inference.huggingface.co/models/{model}"
-            
-            # Different parameters for different model types
-            if "OCR" in model or "PaddleOCR" in model:
-                # OCR models might need different approach
-                print(f"  🔄 Skipping OCR model: {model} (not suitable for text generation)")
-                continue
-                
-            payload = {
-                "inputs": test_prompt,
-                "parameters": {
-                    "max_length": 100,
-                    "temperature": 0.7,
-                    "do_sample": True,
-                    "return_full_text": False
-                }
-            }
-            
-            print(f"  Testing: {model}")
-            response = requests.post(API_URL, headers=headers, json=payload, timeout=25)
-            
-            if response.status_code == 200:
-                working_models.append(model)
-                print(f"    ✅ WORKING - Status: {response.status_code}")
-                # Print sample response
-                try:
-                    result = response.json()
-                    if isinstance(result, list) and len(result) > 0:
-                        sample_text = result[0].get('generated_text', '')[:50]
-                        print(f"    Sample: {sample_text}...")
-                except:
-                    pass
-                    
-            elif response.status_code == 503:
-                working_models.append(model)
-                print(f"    ⚠️  LOADING - Model is loading: {response.status_code}")
-            elif response.status_code == 400:
-                print(f"    ℹ️  MODEL EXISTS but needs different input: {response.status_code}")
-                working_models.append(model)  # Still consider it available
-            else:
-                print(f"    ❌ FAILED - Status: {response.status_code}")
-                
-        except Exception as e:
-            print(f"    ❌ ERROR - {str(e)}")
-    
-    return working_models
-
-# Test the specific models
-available_models = test_specific_models()
-
-if not available_models:
-    print("\\n❌ No specific models are working for text generation!")
-    print("💡 Trying alternative text generation models...")
-    
-    # Fallback to general text models
-    FALLBACK_MODELS = [
-        "gpt2",
-        "distilgpt2", 
-        "EleutherAI/gpt-neo-125M",
-        "microsoft/DialoGPT-medium"
-    ]
-    
-    for model in FALLBACK_MODELS:
-        try:
-            API_URL = f"https://api-inference.huggingface.co/models/{model}"
-            payload = {"inputs": "Test", "parameters": {"max_length": 20}}
-            response = requests.post(API_URL, headers=headers, json=payload, timeout=15)
-            if response.status_code in [200, 503]:
-                available_models.append(model)
-                print(f"  ✅ Fallback model working: {model}")
-                break
-        except:
-            continue
-
-if not available_models:
-    print("\\n⚠️  No models available. Using enhanced fallback system.")
-    available_models = ["fallback"]
-
-print(f"\\n🎉 AVAILABLE MODELS: {len(available_models)}")
-for model in available_models:
-    print(f"   ✅ {model}")
-
-def generate_with_model(keyword, model_name):
-    """Generate content using specific model"""
-    
-    if model_name == "fallback":
-        return None
-    
-    # Optimized prompt for different model types
-    if "MiniMax" in model_name or "Kimi" in model_name or "Qwen" in model_name:
-        prompt = f"""
-As a professional content writer, create a short SEO-friendly paragraph (45-65 words) about {keyword} for nursing students.
-
-Key points to include:
-- Nursing exam preparation and success
-- Professional guidance and support  
-- These resources: {links[0]} and {links[1]}
-
-Tone: Professional, helpful, educational
-"""
-    else:
-        prompt = f"""
-Write a professional SEO paragraph about {keyword} for nursing exam preparation.
-Include natural references to: {links[0]} and {links[1]}
-Keep it between 40-60 words. Focus on educational value.
-"""
-    
-    try:
-        API_URL = f"https://api-inference.huggingface.co/models/{model_name}"
+class WebsiteAnalyzer:
+    def __init__(self, domain):
+        self.domain = domain
+        self.base_url = f"https://{domain}"
+        self.ua = UserAgent()
+        self.analyzed_content = ""
+        self.content_style = ""
+        self.common_phrases = []
         
-        payload = {
-            "inputs": prompt,
-            "parameters": {
-                "max_length": 150,
-                "temperature": 0.8,
-                "do_sample": True,
-                "return_full_text": False,
-                "top_p": 0.9,
-                "repetition_penalty": 1.1
+    def fetch_website_content(self):
+        """Fetch and analyze website content"""
+        try:
+            headers = {
+                'User-Agent': self.ua.random,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
             }
+            
+            print(f"🌐 Fetching website: {self.base_url}")
+            response = requests.get(self.base_url, headers=headers, timeout=30)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Extract meaningful content
+            content_elements = []
+            
+            # Get page title
+            title = soup.find('title')
+            if title:
+                content_elements.append(title.get_text().strip())
+            
+            # Get meta description
+            meta_desc = soup.find('meta', attrs={'name': 'description'})
+            if meta_desc:
+                content_elements.append(meta_desc.get('content', '').strip())
+            
+            # Get main content from common tags
+            content_tags = ['h1', 'h2', 'h3', 'p', 'li', 'div']
+            for tag in content_tags:
+                elements = soup.find_all(tag)
+                for element in elements:
+                    text = element.get_text().strip()
+                    if len(text) > 20 and len(text) < 500:  # Reasonable length
+                        content_elements.append(text)
+            
+            self.analyzed_content = " ".join(content_elements)
+            
+            # Analyze content style
+            self._analyze_content_style()
+            
+            print(f"✅ Website analyzed: {len(self.analyzed_content)} characters extracted")
+            print(f"📝 Content style: {self.content_style}")
+            print(f"🔤 Common phrases: {len(self.common_phrases)} found")
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ Website analysis failed: {e}")
+            return False
+    
+    def _analyze_content_style(self):
+        """Analyze the writing style of the website"""
+        if not self.analyzed_content:
+            self.content_style = "professional"
+            return
+        
+        content_lower = self.analyzed_content.lower()
+        
+        # Detect style based on keywords and patterns
+        style_indicators = {
+            'formal': ['comprehensive', 'professional', 'expert', 'quality', 'premium'],
+            'educational': ['learn', 'study', 'guide', 'tutorial', 'education', 'knowledge'],
+            'conversational': ['you', 'your', 'we', 'our', 'let\'s', 'discover'],
+            'seo_optimized': ['best', 'top', 'guide', 'review', 'how to', 'tips'],
+            'technical': ['system', 'process', 'methodology', 'framework', 'analysis']
         }
         
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=35)
+        detected_styles = []
+        for style, indicators in style_indicators.items():
+            matches = sum(1 for indicator in indicators if indicator in content_lower)
+            if matches > 2:
+                detected_styles.append(style)
         
-        if response.status_code == 200:
-            result = response.json()
+        self.content_style = " + ".join(detected_styles) if detected_styles else "professional"
+        
+        # Extract common phrases (2-4 word sequences)
+        words = re.findall(r'\\b\\w+\\b', self.analyzed_content.lower())
+        phrases = {}
+        for i in range(len(words) - 2):
+            phrase = " ".join(words[i:i+3])
+            if len(phrase) > 10:
+                phrases[phrase] = phrases.get(phrase, 0) + 1
+        
+        # Get most common phrases
+        self.common_phrases = [phrase for phrase, count in sorted(phrases.items(), key=lambda x: x[1], reverse=True)[:10]]
+
+class SmartContentGenerator:
+    def __init__(self, website_analyzer, links, keywords):
+        self.analyzer = website_analyzer
+        self.links = links
+        self.keywords = keywords
+        self.generated_hashes = set()
+        
+    def _get_website_based_templates(self):
+        """Generate templates based on website analysis"""
+        base_templates = [
+            # Problem-Solution format
+            "Struggling with {keyword}? {website_phrase} {link1} Our approach {similar_phrase} ensures {benefit}. {link2}",
             
-            # Handle different response formats
-            if isinstance(result, list) and len(result) > 0:
-                content = ""
-                if 'generated_text' in result[0]:
-                    content = result[0]['generated_text'].strip()
-                elif 'text' in result[0]:
-                    content = result[0]['text'].strip()
-                else:
-                    # Try to get any text from response
-                    content = str(result[0]).strip()
-                
-                if content and len(content) > 30:
-                    # Clean up content
-                    content = re.sub(r'[\\n\\t]+', ' ', content)
-                    content = ' '.join(content.split())  # Remove extra spaces
+            # Benefit-focused format  
+            "Achieve {benefit} with our {keyword} solutions. {website_phrase} {link1} {similar_phrase} for optimal results. {link2}",
+            
+            # Educational format
+            "Learn effective {keyword} strategies that deliver {benefit}. {website_phrase} {link1} {similar_phrase} {link2}",
+            
+            # Results-oriented format
+            "Transform your {keyword} outcomes with proven methods. {website_phrase} {link1} Experience {benefit} through {similar_phrase}. {link2}",
+            
+            # Professional format
+            "Professional {keyword} support for exceptional results. {website_phrase} {link1} {similar_phrase} ensures {benefit}. {link2}"
+        ]
+        
+        return base_templates
+    
+    def _get_website_phrases(self):
+        """Get phrases inspired by website content"""
+        if self.analyzer.common_phrases:
+            return random.sample(self.analyzer.common_phrases, min(3, len(self.analyzer.common_phrases)))
+        else:
+            return ["comprehensive approach", "proven methodology", "expert guidance"]
+    
+    def _get_benefits(self):
+        """Get benefit phrases based on website style"""
+        benefits = [
+            "better results", "improved performance", "enhanced outcomes", 
+            "greater success", "optimal performance", "superior outcomes",
+            "exceptional results", "outstanding performance", "maximum effectiveness"
+        ]
+        return benefits
+    
+    def _get_similar_phrases(self):
+        """Generate phrases similar to website style"""
+        similar_phrases = [
+            "following industry best practices", "utilizing proven techniques",
+            "implementing effective strategies", "applying expert methodologies",
+            "leveraging comprehensive approaches", "employing professional systems"
+        ]
+        return similar_phrases
+    
+    def generate_content(self, keyword):
+        """Generate content inspired by website analysis"""
+        attempts = 0
+        while attempts < 5:
+            # Choose template
+            template = random.choice(self._get_website_based_templates())
+            
+            # Get variations
+            website_phrase = random.choice(self._get_website_phrases())
+            benefit = random.choice(self._get_benefits())
+            similar_phrase = random.choice(self._get_similar_phrases())
+            
+            # Generate content
+            content = template.format(
+                keyword=keyword,
+                website_phrase=website_phrase,
+                similar_phrase=similar_phrase,
+                benefit=benefit,
+                link1=self.links[0],
+                link2=self.links[1]
+            )
+            
+            # Clean and format
+            content = re.sub(r'\\s+', ' ', content).strip()
+            content = content[0].upper() + content[1:]  # Capitalize first letter
+            
+            # Ensure proper length (30-50 words)
+            words = content.split()
+            if 30 <= len(words) <= 50:
+                content_hash = hash(content.lower().strip()) % 1000000
+                if content_hash not in self.generated_hashes:
+                    self.generated_hashes.add(content_hash)
                     return content
-                    
-        elif response.status_code == 503:
-            print(f"    ⏳ Model {model_name} is loading, waiting 15 seconds...")
-            time.sleep(15)
-            return generate_with_model(keyword, model_name)  # Retry
             
-    except Exception as e:
-        print(f"    ❌ Model {model_name} error: {str(e)}")
-    
-    return None
+            attempts += 1
+        
+        # Fallback template
+        return f"Get professional {keyword} support with comprehensive resources. {self.links[0]} Our expert approach ensures optimal outcomes and successful results. {self.links[1]}"
 
-def get_enhanced_fallback(keyword):
-    """High-quality fallback content with variations"""
-    
-    # Different content angles for diversity
-    angles = [
-        # Problem-Solution angle
-        f"Struggling with {keyword}? Get comprehensive nursing exam support and expert guidance. {links[0]} Our specialized {keyword} program offers proven strategies and personalized assistance. {links[1]} Achieve your healthcare career goals with confidence and professional backing.",
-        
-        # Benefits-focused angle  
-        f"Excel in your {keyword} with our dedicated preparation platform and premium resources. {links[0]} Access expert strategies, proven techniques, and personalized {keyword} guidance. {links[1]} Join thousands of successful nursing students in achieving exam excellence.",
-        
-        # Authority angle
-        f"Master {keyword} with professional nursing exam guidance and comprehensive support system. {links[0]} Our expert team provides specialized {keyword} assistance with evidence-based preparation methods. {links[1]} Transform your test performance and build healthcare career confidence.",
-        
-        # Results angle
-        f"Achieve outstanding {keyword} results with our professional support framework. {links[0]} Access specialized nursing exam resources, proven methodologies, and expert guidance. {links[1]} Your healthcare career success begins with proper preparation and dedicated support."
-    ]
-    
-    selected = random.choice(angles)
-    
-    # Add some randomization
-    variations = {
-        "comprehensive": ["thorough", "complete", "extensive"],
-        "expert": ["professional", "specialized", "experienced"],
-        "proven": ["tested", "established", "verified"],
-        "achieve": ["attain", "accomplish", "reach"]
-    }
-    
-    for word, alternatives in variations.items():
-        if word in selected:
-            selected = selected.replace(word, random.choice(alternatives), 1)
-    
-    return selected
+# MAIN EXECUTION
+print("\\n🔍 ANALYZING TARGET WEBSITE...")
+analyzer = WebsiteAnalyzer(domain)
 
-# MAIN GENERATION PROCESS
-TOTAL_CONTENTS = 50
+if analyzer.fetch_website_content():
+    print("✅ Website analysis successful!")
+else:
+    print("⚠️ Using fallback analysis method")
+    # Create basic analyzer with default values
+    analyzer.analyzed_content = "professional nursing exam preparation guidance"
+    analyzer.content_style = "professional + educational"
+    analyzer.common_phrases = ["comprehensive preparation", "expert guidance", "proven methods"]
+
+print(f"\\n🎯 GENERATING WEBSITE-INSPIRED CONTENT...")
+generator = SmartContentGenerator(analyzer, links, keywords)
+
+TOTAL_CONTENTS = 175
 generated_data = []
-
-print(f"\\n🎯 GENERATING {TOTAL_CONTENTS} CONTENT PIECES...")
-print("=" * 50)
-
-success_count = 0
-model_success_count = 0
-fallback_count = 0
 
 for i in range(TOTAL_CONTENTS):
     try:
         keyword = random.choice(keywords)
-        print(f"\\n📝 {i+1}/{TOTAL_CONTENTS} - Keyword: {keyword}")
+        print(f"📝 {i+1}/{TOTAL_CONTENTS} - {keyword}")
         
-        content = None
-        used_model = "fallback"
+        content = generator.generate_content(keyword)
         
-        # Try available models
-        for model in available_models:
-            if model != "fallback":
-                content = generate_with_model(keyword, model)
-                if content:
-                    used_model = model
-                    model_success_count += 1
-                    print(f"  ✅ Generated with: {model}")
-                    break
-        
-        # If models fail, use enhanced fallback
-        if not content:
-            content = get_enhanced_fallback(keyword)
-            fallback_count += 1
-            print(f"  🔄 Using enhanced fallback")
-        
-        # Ensure proper link inclusion
-        final_content = content
-        links_count = 0
-        
-        # Check and add links if missing
-        for link in links:
-            if link in final_content:
-                links_count += 1
-            else:
-                # Add link naturally
-                sentences = [s.strip() for s in final_content.split('.') if s.strip()]
-                if len(sentences) > 1:
-                    insert_pos = random.randint(1, len(sentences)-1)
-                    link_phrase = f"Access comprehensive resources at {link}" if "Access" not in link else link
-                    sentences.insert(insert_pos, link_phrase)
-                    final_content = '. '.join(sentences)
-                    links_count += 1
-        
-        # Final link count adjustment
-        if links_count < 2:
-            missing_links = [link for link in links if link not in final_content]
-            for missing_link in missing_links[:2-links_count]:
-                final_content += f" {missing_link}"
-            links_count = 2
+        # Ensure links are included
+        links_count = sum(1 for link in links if link in content)
         
         generated_data.append({
             "id": i + 1,
             "keyword": keyword,
-            "content": final_content,
-            "word_count": len(final_content.split()),
+            "content": content,
+            "word_count": len(content.split()),
             "links_count": links_count,
-            "model_used": used_model,
-            "timestamp": datetime.now().isoformat(),
-            "content_hash": hash(final_content) % 1000000  # Simple content hash
+            "style": analyzer.content_style,
+            "timestamp": datetime.now().isoformat()
         })
         
-        success_count += 1
-        print(f"  ✅ Completed - Links: {links_count}, Words: {len(final_content.split())}")
+        print(f"   ✅ Generated - Words: {len(content.split())}, Links: {links_count}")
         
-        # Rate limiting
-        time.sleep(2)
-        
+        # Progress indicator
+        if (i + 1) % 25 == 0:
+            print(f"⏳ Progress: {i+1}/{TOTAL_CONTENTS} ({((i+1)/TOTAL_CONTENTS)*100:.1f}%)")
+            time.sleep(0.5)
+            
     except Exception as e:
         print(f"❌ Error in item {i+1}: {str(e)}")
         continue
 
 # SAVE RESULTS
-print("\\n💾 SAVING RESULTS...")
+print("\\n💾 SAVING SMART CONTENT...")
 try:
-    output_file = "new_models_content.json"
+    output_file = "smart_website_content.json"
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(generated_data, f, indent=2, ensure_ascii=False)
     
@@ -394,34 +323,24 @@ try:
     
 except Exception as e:
     print(f"❌ Error saving results: {e}")
-    sys.exit(1)
+    exit(1)
 
 # FINAL STATISTICS
 print("\\n" + "=" * 70)
-print("📊 GENERATION COMPLETED - NEW MODELS EDITION")
+print("📊 SMART GENERATION COMPLETED")
 print("=" * 70)
-print(f"🎯 Target Content: {TOTAL_CONTENTS}")
-print(f"✅ Successfully Generated: {success_count} ({success_count/TOTAL_CONTENTS*100:.1f}%)")
-print(f"🤖 Model Success: {model_success_count}")
-print(f"🔄 Fallback Used: {fallback_count}")
+print(f"🎯 Target: {TOTAL_CONTENTS} content pieces")
+print(f"✅ Generated: {len(generated_data)} ({len(generated_data)/TOTAL_CONTENTS*100:.1f}%)")
 print(f"🔗 Total Links: {sum(item['links_count'] for item in generated_data)}")
 print(f"📝 Total Words: {sum(item['word_count'] for item in generated_data)}")
+print(f"🎨 Content Style: {analyzer.content_style}")
+print(f"🔤 Unique Phrases: {len(generator.generated_hashes)}")
 
-if available_models and available_models[0] != "fallback":
-    print(f"🔧 Models Used: {', '.join(set(item['model_used'] for item in generated_data))}")
-
-print(f"\\n📈 QUALITY METRICS:")
-avg_words = sum(item['word_count'] for item in generated_data) / len(generated_data)
-avg_links = sum(item['links_count'] for item in generated_data) / len(generated_data)
-print(f"   Average Words: {avg_words:.1f}")
-print(f"   Average Links: {avg_links:.1f}")
-print(f"   Unique Keywords: {len(set(item['keyword'] for item in generated_data))}")
-
-print("\\n🚀 CONTENT GENERATION WITH NEW MODELS COMPLETED!")
+print("\\n🚀 WEBSITE-INSPIRED CONTENT GENERATION COMPLETED!")
 EOF
 
-                    # Run the content generator
-                    python3 content_generator.py
+                    # Run the smart content generator
+                    python3 smart_content_generator.py
                     '''
                 }
             }
@@ -431,18 +350,17 @@ EOF
             steps {
                 dir('content-generation') {
                     sh '''
-                    echo "🔍 VERIFYING GENERATED CONTENT..."
+                    echo "🔍 VERIFYING SMART CONTENT..."
                     . venv/bin/activate
                     
-                    # Verification script
                     python3 - << 'EOF'
 import json, os
 from collections import Counter
 
-print("📊 NEW MODELS CONTENT VERIFICATION")
+print("📊 SMART CONTENT VERIFICATION REPORT")
 print("=" * 50)
 
-file_path = "new_models_content.json"
+file_path = "smart_website_content.json"
 if not os.path.exists(file_path):
     print("❌ Generated file not found!")
     exit(1)
@@ -453,47 +371,37 @@ try:
     
     print(f"✅ File loaded: {len(data)} content pieces")
     
-    # Analysis
-    model_usage = Counter([item.get('model_used', 'unknown') for item in data])
-    keyword_usage = Counter([item['keyword'] for item in data])
+    # Quality analysis
+    word_counts = [item['word_count'] for item in data]
+    link_counts = [item['links_count'] for item in data]
+    styles = Counter([item.get('style', 'unknown') for item in data])
     
-    print(f"\\n🔧 MODEL USAGE:")
-    for model, count in model_usage.most_common():
-        print(f"   {model}: {count} times ({count/len(data)*100:.1f}%)")
+    print(f"\\n📈 QUALITY METRICS:")
+    print(f"   - Average Words: {sum(word_counts)/len(word_counts):.1f}")
+    print(f"   - Average Links: {sum(link_counts)/len(link_counts):.1f}")
+    print(f"   - Content Styles: {dict(styles)}")
     
-    print(f"\\n🎯 KEYWORD DISTRIBUTION:")
-    for keyword, count in keyword_usage.most_common(5):
-        print(f"   {keyword}: {count} times")
+    # Check for proper link inclusion
+    proper_links = sum(1 for item in data if item['links_count'] >= 2)
+    print(f"   - Properly Linked: {proper_links}/{len(data)} ({proper_links/len(data)*100:.1f}%)")
     
-    # Quality checks
-    quality_issues = []
-    for item in data:
-        if item.get('links_count', 0) != 2:
-            quality_issues.append(f"Item {item['id']}: {item.get('links_count', 0)} links")
-        if item.get('word_count', 0) < 35:
-            quality_issues.append(f"Item {item['id']}: {item.get('word_count', 0)} words")
-    
-    print(f"\\n📈 QUALITY REPORT:")
-    print(f"   - Total Items: {len(data)}")
-    print(f"   - Quality Issues: {len(quality_issues)}")
-    print(f"   - Avg Links: {sum(item.get('links_count', 0) for item in data)/len(data):.1f}")
-    print(f"   - Avg Words: {sum(item.get('word_count', 0) for item in data)/len(data):.1f}")
-    
-    if quality_issues:
-        print(f"\\n⚠️  Issues (sample):")
-        for issue in quality_issues[:3]:
-            print(f"   - {issue}")
-    
-    # Show samples
+    # Show content samples
     print(f"\\n📝 CONTENT SAMPLES:")
-    for i, item in enumerate(data[:2]):
-        print(f"\\n{i+1}. [{item.get('model_used', 'unknown')}] {item['keyword']}")
-        print(f"   Links: {item.get('links_count', 0)}")
-        print(f"   Words: {item.get('word_count', 0)}")
+    print("=" * 40)
+    for i, item in enumerate(data[:3]):
+        print(f"\\n{i+1}. {item['keyword']}")
+        print(f"   Style: {item.get('style', 'unknown')}")
+        print(f"   Words: {item['word_count']}, Links: {item['links_count']}")
         print(f"   Preview: {item['content'][:80]}...")
         print("-" * 40)
     
-    print(f"\\n🎉 VERIFICATION COMPLETED SUCCESSFULLY!")
+    # Keyword distribution
+    keyword_dist = Counter([item['keyword'] for item in data])
+    print(f"\\n🎯 KEYWORD DISTRIBUTION:")
+    for keyword, count in keyword_dist.most_common():
+        print(f"   {keyword}: {count} times")
+    
+    print(f"\\n🎉 SMART CONTENT VERIFICATION PASSED!")
     
 except Exception as e:
     print(f"❌ Verification failed: {e}")
@@ -504,8 +412,8 @@ EOF
                     echo "🚀 Pushing to GitHub..."
                     git config --global user.email "ayzazkhan82@gmail.com"
                     git config --global user.name "Ayzazkhan"
-                    git add new_models_content.json
-                    git commit -m "Auto-generated: 50 content pieces with NEW Hugging Face models [Jenkins Build ${BUILD_NUMBER}]" || echo "No changes"
+                    git add smart_website_content.json
+                    git commit -m "Auto-generated: 175 website-inspired content pieces [Jenkins Build ${BUILD_NUMBER}]" || echo "No changes"
                     git push origin main || echo "Push failed"
                     echo "✅ Process completed!"
                     '''
@@ -522,24 +430,27 @@ EOF
                 rm -rf venv
                 echo "📁 Generated files:"
                 ls -la *.json
-                echo "📊 Final stats:"
+                echo "📊 Final content stats:"
                 python3 -c "
 import json
 try:
-    data = json.load(open('new_models_content.json'))
-    models = set(item.get('model_used', 'unknown') for item in data)
-    print(f'Total: {len(data)} items')
-    print(f'Models used: {list(models)}')
-    print(f'Total links: {sum(item.get(\\\"links_count\\\", 0) for item in data)}')
+    data = json.load(open('smart_website_content.json'))
+    total_words = sum(item['word_count'] for item in data)
+    total_links = sum(item['links_count'] for item in data)
+    print(f'Total content pieces: {len(data)}')
+    print(f'Total words generated: {total_words}')
+    print(f'Total links included: {total_links}')
+    print(f'Average words per content: {total_words/len(data):.1f}')
+    print(f'Average links per content: {total_links/len(data):.1f}')
 except Exception as e:
     print(f'Error: {e}')
 "
                 '''
             }
-            archiveArtifacts artifacts: 'content-generation/new_models_content.json', fingerprint: true
+            archiveArtifacts artifacts: 'content-generation/smart_website_content.json', fingerprint: true
         }
         success {
-            echo "🎉 SUCCESS! 50 content pieces generated with NEW Hugging Face models!"
+            echo "🎉 SUCCESS! 175 website-inspired content pieces generated!"
         }
     }
 }
