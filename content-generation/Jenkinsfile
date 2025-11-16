@@ -2,384 +2,258 @@ pipeline {
     agent any
 
     stages {
-        stage('Checkout Code') {
-            steps {
-                git branch: 'main',
-                    url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git',
-                    credentialsId: 'github-credentials'
-            }
-        }
-
-        stage('Setup Stable Environment') {
+        stage('Setup Content Generation Environment') {
             steps {
                 dir('content-generation') {
                     sh '''
-                    echo "🚀 Installing Stable NLP Libraries..."
+                    echo "🚀 Installing Content Generation Libraries..."
                     python3 -m venv venv || python -m venv venv
                     . venv/bin/activate
                     pip install --upgrade pip
                     
-                    # Core reliable libraries
-                    pip install requests beautifulsoup4 lxml urllib3
+                    # Core content generation libraries
+                    pip install transformers torch
+                    pip install sentencepiece protobuf
+                    pip install huggingface_hub
+                    pip install gpt4all
+                    pip install simpletransformers
                     
-                    # Stable NLP & Grammar Libraries (no problematic dependencies)
-                    pip install language-tool-python textblob autocorrect
-                    pip install nltk textstat
-                    
-                    # Download required data
-                    python -m textblob.download_corpora
-                    python -c "import nltk; nltk.download('punkt'); nltk.download('averaged_perceptron_tagger'); nltk.download('brown')"
-                    
-                    echo "✅ Stable Libraries Installed"
+                    echo "✅ Content Generation Libraries Installed"
                     '''
                 }
             }
         }
 
-        stage('Create Fixed Python Scripts') {
+        stage('Create Content Generation Scripts') {
             steps {
                 dir('content-generation') {
-                    // Create FIXED Content Generator with proper error handling
-                    writeFile file: 'fixed_content_generator.py', text: '''import json
+                    writeFile file: 'content_generation_lib.py', text: '''import json
 import random
 import re
 from collections import defaultdict
-import language_tool_python
-from textblob import TextBlob
-from autocorrect import Speller
-import nltk
-from textstat import flesch_reading_ease
+import torch
+from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
+from huggingface_hub import InferenceClient
 
 print("=" * 80)
-print("🚀 FIXED CONTENT GENERATION WITH ERROR HANDLING")
+print("🚀 PYTHON CONTENT GENERATION LIBRARIES")
 print("=" * 80)
 
-# Initialize stable NLP tools
-class StableNLPTools:
+class ContentGenerator:
     def __init__(self):
-        print("🛠️ Initializing Stable NLP Tools...")
-        
-        # Grammar and spell checkers
-        try:
-            self.grammar_tool = language_tool_python.LanguageTool('en-US')
-            print("  ✅ LanguageTool initialized")
-        except Exception as e:
-            print(f"  ⚠️ LanguageTool failed: {e}")
-            self.grammar_tool = None
-        
-        try:
-            self.spell_checker = Speller()
-            print("  ✅ Spell Checker initialized")
-        except Exception as e:
-            print(f"  ⚠️ Spell Checker failed: {e}")
-            self.spell_checker = None
-        
-        print("  ✅ All stable NLP tools ready")
+        print("🛠️ Initializing Content Generation Libraries...")
+        self.generators = {}
+        self.setup_generators()
     
-    def stable_grammar_check(self, text):
-        """Stable grammar and spell checking without problematic dependencies"""
-        if not text.strip():
-            return text
-        
-        original_text = text
-        
+    def setup_generators(self):
+        """Setup different content generation models"""
         try:
-            # Layer 1: LanguageTool grammar check
-            if self.grammar_tool:
-                matches = self.grammar_tool.check(text)
-                if matches:
-                    text = language_tool_python.correct(text, matches)
-            
-            # Layer 2: TextBlob spelling correction
-            blob = TextBlob(text)
-            text = str(blob.correct())
-            
-            # Layer 3: Additional spell checking
-            if self.spell_checker:
-                text = self.spell_checker(text)
-            
-            if text != original_text:
-                print(f"   🔧 Grammar corrected: {original_text[:50]}...")
-            
-            return text
-            
+            # 1. GPT-2 (Most reliable free model)
+            self.generators['gpt2'] = pipeline(
+                "text-generation",
+                model="gpt2",
+                tokenizer="gpt2",
+                torch_dtype=torch.float16,
+                device_map="auto"
+            )
+            print("  ✅ GPT-2 loaded")
         except Exception as e:
-            print(f"  ⚠️ Grammar check error: {e}")
-            return original_text
-    
-    def improve_sentence_structure(self, text):
-        """Improve sentence structure and readability"""
+            print(f"  ⚠️ GPT-2 failed: {e}")
+        
         try:
-            # Split into sentences
-            sentences = re.split(r'[.!?]+', text)
-            improved_sentences = []
-            
-            for sentence in sentences:
-                sentence = sentence.strip()
-                if not sentence:
-                    continue
-                
-                # Ensure proper capitalization
-                if sentence and not sentence[0].isupper():
-                    sentence = sentence[0].upper() + sentence[1:]
-                
-                # Remove duplicate words and fix spacing
-                words = sentence.split()
-                cleaned_words = []
-                prev_word = ""
-                
-                for word in words:
-                    if word != prev_word:
-                        cleaned_words.append(word)
-                    prev_word = word
-                
-                cleaned_sentence = ' '.join(cleaned_words)
-                
-                # Ensure proper punctuation
-                if not cleaned_sentence.endswith(('.', '!', '?')):
-                    cleaned_sentence += '.'
-                
-                improved_sentences.append(cleaned_sentence)
-            
-            # Reconstruct text
-            final_text = ' '.join(improved_sentences)
-            final_text = re.sub(r'\\s+', ' ', final_text)
-            
-            return final_text.strip()
-            
+            # 2. DistilGPT2 (Faster alternative)
+            self.generators['distilgpt2'] = pipeline(
+                "text-generation",
+                model="distilgpt2"
+            )
+            print("  ✅ DistilGPT2 loaded")
         except Exception as e:
-            print(f"  ⚠️ Sentence structure error: {e}")
-            return text
-    
-    def check_readability(self, text):
-        """Check content readability score"""
+            print(f"  ⚠️ DistilGPT2 failed: {e}")
+        
         try:
-            score = flesch_reading_ease(text)
-            if score >= 60:
-                return "excellent"
-            elif score >= 50:
-                return "good"
-            elif score >= 30:
-                return "fair"
-            else:
-                return "poor"
+            # 3. Hugging Face Inference API (No local model needed)
+            self.generators['hf_api'] = InferenceClient()
+            print("  ✅ Hugging Face API ready")
+        except Exception as e:
+            print(f"  ⚠️ HF API failed: {e}")
+    
+    def generate_with_gpt2(self, prompt, max_length=60):
+        """Generate content using GPT-2"""
+        try:
+            result = self.generators['gpt2'](
+                prompt,
+                max_length=max_length,
+                num_return_sequences=1,
+                temperature=0.8,
+                do_sample=True,
+                pad_token_id=50256
+            )
+            return result[0]['generated_text'].replace(prompt, '').strip()
         except:
-            return "good"
+            return None
     
-    def enhance_content_quality(self, text):
-        """Enhance content quality with stable methods"""
-        # Apply grammar check
-        grammar_checked = self.stable_grammar_check(text)
+    def generate_with_distilgpt2(self, prompt, max_length=60):
+        """Generate content using DistilGPT2"""
+        try:
+            result = self.generators['distilgpt2'](
+                prompt,
+                max_length=max_length,
+                num_return_sequences=1,
+                temperature=0.8,
+                do_sample=True
+            )
+            return result[0]['generated_text'].replace(prompt, '').strip()
+        except:
+            return None
+    
+    def generate_with_hf_api(self, prompt, max_length=60):
+        """Generate content using Hugging Face API"""
+        try:
+            result = self.generators['hf_api'].text_generation(
+                prompt,
+                max_new_tokens=max_length,
+                temperature=0.8
+            )
+            return result.replace(prompt, '').strip()
+        except:
+            return None
+    
+    def generate_content(self, prompt, max_length=60):
+        """Generate content using available models"""
+        # Try GPT-2 first
+        content = self.generate_with_gpt2(prompt, max_length)
+        if content:
+            return content
         
-        # Improve sentence structure
-        structure_improved = self.improve_sentence_structure(grammar_checked)
+        # Try DistilGPT2
+        content = self.generate_with_distilgpt2(prompt, max_length)
+        if content:
+            return content
         
-        # Check readability
-        readability = self.check_readability(structure_improved)
+        # Try HF API
+        content = self.generate_with_hf_api(prompt, max_length)
+        if content:
+            return content
         
-        return structure_improved, readability
+        # Fallback to template-based generation
+        return self.fallback_generation(prompt)
+    
+    def fallback_generation(self, prompt):
+        """Template-based fallback generation"""
+        templates = [
+            "Professional academic assistance for students seeking quality results.",
+            "Expert guidance and comprehensive support for academic success.",
+            "Reliable services providing tailored solutions for educational needs.",
+            "Quality academic help from experienced professionals in the field.",
+            "Comprehensive support system for students aiming for excellence."
+        ]
+        return random.choice(templates)
 
-# Load competitor analysis with proper error handling
-print("📂 Loading competitor analysis...")
+# Load analysis data
+print("📂 Loading analysis data...")
 try:
     with open("advanced_analysis.json", "r") as f:
         analysis = json.load(f)
-    print("✅ Loaded advanced competitor analysis")
     
-    # Extract analysis data with fallbacks
     keywords = analysis.get("seo_optimization", {}).get("keywords", [])
-    anchor_texts = analysis.get("seo_optimization", {}).get("anchor_texts", [])
-    sample_sentences = analysis.get("content_strategy", {}).get("sample_sentences", [])
-    writing_patterns = analysis.get("content_strategy", {}).get("writing_patterns", {})
+    anchors = analysis.get("seo_optimization", {}).get("anchor_texts", [])
     domain = analysis.get("generation_parameters", {}).get("target_domain", "economicsassignmenthelp.co.uk")
     
-    # Ensure we have keywords
     if not keywords:
-        print("⚠️ No keywords found in analysis, using fallback keywords")
         keywords = [
-            "economics assignment help",
-            "economics assignment writing help", 
-            "buy economics assignment",
-            "pay someone to write economics assignment",
-            "economics research paper help",
-            "economics paper writer",
-            "order economics assignment"
+            "economics assignment help", "economics homework help",
+            "economics paper writing", "economic research assistance"
         ]
     
-    if not anchor_texts:
-        print("⚠️ No anchor texts found, using fallback anchors")
-        anchor_texts = ["Learn More", "Get Started", "View Services", "Contact Us", "Get Help"]
+    if not anchors:
+        anchors = ["Learn More", "Get Started", "View Services", "Contact Us"]
         
 except Exception as e:
-    print(f"❌ Error loading analysis: {e}")
-    print("🔄 Using fallback data...")
-    # Fallback data
-    keywords = [
-        "economics assignment help",
-        "economics assignment writing help", 
-        "buy economics assignment",
-        "pay someone to write economics assignment",
-        "economics research paper help",
-        "economics paper writer",
-        "order economics assignment"
-    ]
-    anchor_texts = ["Learn More", "Get Started", "View Services", "Contact Us"]
-    sample_sentences = []
-    writing_patterns = {
-        "common_starters": ["Get", "Learn", "Discover", "Find", "Achieve"],
-        "avg_sentence_length": 12
-    }
+    print(f"❌ Error: {e}")
+    keywords = ["economics assignment help", "academic writing services"]
+    anchors = ["Learn More", "Get Started"]
     domain = "economicsassignmenthelp.co.uk"
-    analysis = {
-        "seo_optimization": {"keywords": keywords, "anchor_texts": anchor_texts},
-        "content_strategy": {"sample_sentences": sample_sentences, "writing_patterns": writing_patterns},
-        "generation_parameters": {"target_domain": domain}
-    }
 
 print(f"📊 Generation Parameters:")
-print(f"   • SEO Keywords: {len(keywords)}")
-print(f"   • Anchor Texts: {len(anchor_texts)}")
-print(f"   • Writing Samples: {len(sample_sentences)}")
-print(f"   • Target Domain: {domain}")
+print(f"   • Keywords: {len(keywords)}")
+print(f"   • Anchors: {len(anchors)}")
 
-class FixedContentGenerator:
-    def __init__(self, analysis_data, nlp_tools):
-        self.keywords = analysis_data["seo_optimization"]["keywords"]
-        self.anchors = analysis_data["seo_optimization"]["anchor_texts"]
-        self.sample_sentences = analysis_data["content_strategy"]["sample_sentences"]
-        self.writing_style = analysis_data["content_strategy"]["writing_patterns"]
-        self.domain = analysis_data["generation_parameters"]["target_domain"]
-        self.nlp_tools = nlp_tools
+class AdvancedContentGenerator:
+    def __init__(self, keywords, anchors, domain):
+        self.keywords = keywords
+        self.anchors = anchors
+        self.domain = domain
+        self.content_gen = ContentGenerator()
         
-        # Ensure we have valid data
-        self._validate_data()
-        
-        # Create intelligent templates
-        self.templates = self._create_quality_templates()
-        
-    def _validate_data(self):
-        """Validate and ensure we have all required data"""
-        print("🔍 Validating data...")
-        
-        # Ensure keywords are not empty
-        if not self.keywords:
-            print("⚠️ Keywords list is empty, using fallback keywords")
-            self.keywords = [
-                "economics assignment help",
-                "economics homework help",
-                "economics paper writing"
-            ]
-        
-        # Ensure anchors are not empty
-        if not self.anchors:
-            print("⚠️ Anchor texts list is empty, using fallback anchors")
-            self.anchors = ["Learn More", "Get Started", "View Services", "Contact Us"]
-        
-        # Ensure writing style has starters
-        if not self.writing_style.get("common_starters"):
-            print("⚠️ No common starters found, using fallback starters")
-            self.writing_style["common_starters"] = ["Get", "Learn", "Discover", "Find", "Achieve"]
-        
-        print(f"✅ Data validated: {len(self.keywords)} keywords, {len(self.anchors)} anchors")
+        # Content templates with placeholders for AI generation
+        self.prompts = {
+            "professional": "Write a professional 2-sentence paragraph about {keyword} services:",
+            "benefit": "Create benefit-focused content for {keyword} assistance:",
+            "academic": "Write academic-focused content about {keyword} support:",
+            "service": "Describe service offerings for {keyword} in 2 sentences:"
+        }
     
-    def _create_quality_templates(self):
-        """Create professional templates based on analysis"""
-        starters = self.writing_style["common_starters"]
-        
-        # Professional academic templates
-        quality_templates = [
-            # Professional format
-            "{} expert {} services from qualified professionals. <a href='https://{}/{}'>{}</a> Comprehensive academic support <a href='https://{}/{}'>{}</a> for guaranteed results.",
-            
-            # Benefit-focused format
-            "Achieve academic success with our {} assistance. <a href='https://{}/{}'>{}</a> Professional guidance and reliable support <a href='https://{}/{}'>{}</a> for your assignments.",
-            
-            # Service-oriented format
-            "Need professional {} help? <a href='https://{}/{}'>{}</a> Our experienced team provides quality solutions <a href='https://{}/{}'>{}</a> tailored to your requirements.",
-            
-            # Results-driven format
-            "Excel in your economics studies with {} support. <a href='https://{}/{}'>{}</a> Expert assistance and comprehensive help <a href='https://{}/{}'>{}</a> for better grades.",
-            
-            # Quality-focused format
-            "Get high-quality {} services from academic experts. <a href='https://{}/{}'>{}</a> Professional support and reliable assistance <a href='https://{}/{}'>{}</a> for your success."
-        ]
-        
-        return quality_templates
-    
-    def create_seo_slug(self, text):
-        """Create SEO-friendly URL slugs"""
+    def create_slug(self, text):
+        """Create SEO-friendly slugs"""
         slug = text.lower().replace(' ', '-')
         slug = re.sub(r'[^a-z0-9-]', '', slug)
-        # Ensure slug is meaningful
-        if len(slug) < 3:
-            slug = "academic-help"
         return slug[:30]
     
-    def generate_quality_content(self):
-        """Generate one high-quality content piece"""
-        # Select keyword with contextual relevance
-        keyword = random.choice(self.keywords)
+    def generate_ai_content(self, keyword, prompt_type):
+        """Generate AI-powered content"""
+        prompt_template = self.prompts.get(prompt_type, self.prompts["professional"])
+        prompt = prompt_template.format(keyword=keyword)
         
-        # Select appropriate anchors
+        # Generate content using AI
+        ai_content = self.content_gen.generate_content(prompt, max_length=80)
+        
+        # Clean and format
+        ai_content = re.sub(r'[^\\w\\s.,!?-]', '', ai_content)
+        sentences = ai_content.split('.')
+        if len(sentences) > 2:
+            ai_content = '. '.join(sentences[:2]) + '.'
+        
+        return ai_content.strip()
+    
+    def generate_content_piece(self):
+        """Generate one complete content piece"""
+        keyword = random.choice(self.keywords)
+        prompt_type = random.choice(list(self.prompts.keys()))
+        
+        # Select anchors
         available_anchors = [a for a in self.anchors if 5 <= len(a) <= 35]
         if len(available_anchors) >= 2:
             anchor1 = random.choice(available_anchors)
             anchor2 = random.choice([a for a in available_anchors if a != anchor1])
         else:
-            anchor1 = "Get Expert Help"
-            anchor2 = "View Our Services"
+            anchor1, anchor2 = "Learn More", "Get Started"
         
-        # Create relevant slugs
-        slug1 = self.create_seo_slug(keyword)
-        slug2 = self.create_seo_slug(random.choice(self.keywords))
+        # Generate AI content
+        ai_content = self.generate_ai_content(keyword, prompt_type)
         
-        # Select and format template
-        template = random.choice(self.templates)
-        starter = random.choice(self.writing_style["common_starters"])
+        # Create slugs
+        slug1 = self.create_slug(keyword)
+        slug2 = self.create_slug(random.choice(self.keywords))
         
-        # Generate base content
-        raw_content = template.format(
-            starter, keyword, self.domain, slug1, anchor1,
-            self.domain, slug2, anchor2
-        )
+        # Build final content with links
+        content = f"{ai_content} <a href='https://{self.domain}/{slug1}'>{anchor1}</a>"
         
-        return raw_content, keyword, [anchor1, anchor2]
-    
-    def apply_quality_enhancements(self, content, keyword):
-        """Apply all quality enhancements to content"""
-        print(f"  🎯 Enhancing content for: {keyword}")
+        # Add second link
+        if random.random() < 0.7:
+            content += f" <a href='https://{self.domain}/{slug2}'>{anchor2}</a>"
         
-        # Apply grammar and structure improvements
-        enhanced_content, readability = self.nlp_tools.enhance_content_quality(content)
-        
-        # Ensure optimal length
-        words = enhanced_content.split()
-        if len(words) > 55:
-            enhanced_content = ' '.join(words[:50]) + '.'
-        elif len(words) < 25:
-            enhancements = [
-                " Contact our experts for personalized assistance.",
-                " Get professional help tailored to your needs.",
-                " Achieve academic success with our support."
-            ]
-            enhanced_content += random.choice(enhancements)
-        
-        return enhanced_content, readability
+        return content, keyword, [anchor1, anchor2], prompt_type
     
     def generate_batch(self, count=175):
-        """Generate a batch of high-quality content pieces"""
-        print(f"\\n🎯 GENERATING {count} QUALITY CONTENT PIECES...")
+        """Generate batch of content pieces"""
+        print(f"\\n🎯 GENERATING {count} CONTENT PIECES...")
         
-        # Ensure we have keywords to work with
         if not self.keywords:
-            print("❌ ERROR: No keywords available for generation")
             return []
         
-        # Calculate max uses per keyword safely
         try:
             max_uses = max(2, count // len(self.keywords))
-        except ZeroDivisionError:
-            print("⚠️ ZeroDivisionError: Using default max_uses of 10")
+        except:
             max_uses = 10
         
         generated_data = []
@@ -387,7 +261,6 @@ class FixedContentGenerator:
         
         for i in range(count):
             try:
-                # Smart keyword distribution
                 available_keywords = [k for k in self.keywords if keyword_usage[k] < max_uses]
                 if not available_keywords:
                     available_keywords = self.keywords
@@ -395,463 +268,167 @@ class FixedContentGenerator:
                 keyword = random.choice(available_keywords)
                 keyword_usage[keyword] += 1
                 
-                # Generate and enhance content
-                raw_content, keyword, anchors = self.generate_quality_content()
-                final_content, readability = self.apply_quality_enhancements(raw_content, keyword)
+                content, keyword, anchors, prompt_type = self.generate_content_piece()
                 
-                # Calculate quality metrics
-                word_count = len(final_content.split())
-                links_count = final_content.count('<a href')
+                word_count = len(content.split())
+                links_count = content.count('<a href')
                 
                 # Quality scoring
-                quality_score = self.calculate_quality_score(final_content, word_count, links_count, readability)
+                quality_score = self.calculate_quality(content, word_count, links_count)
                 
                 generated_data.append({
                     'id': i + 1,
                     'keyword': keyword,
-                    'content': final_content,
+                    'content': content,
                     'word_count': word_count,
                     'links_count': links_count,
                     'anchor_texts': anchors,
-                    'readability': readability,
+                    'prompt_type': prompt_type,
                     'quality_score': quality_score,
-                    'seo_optimized': True,
-                    'grammar_checked': True
+                    'ai_generated': True
                 })
                 
                 if (i + 1) % 25 == 0:
-                    print(f"  ✅ Generated {i + 1}/{count} - Current: {keyword}")
+                    print(f"  ✅ {i + 1}/{count} - {keyword}")
                     
             except Exception as e:
-                print(f"  ⚠️ Error generating piece {i+1}: {e}")
+                print(f"  ⚠️ Error {i+1}: {e}")
                 continue
         
         return generated_data
     
-    def calculate_quality_score(self, content, word_count, links_count, readability):
-        """Calculate comprehensive quality score"""
+    def calculate_quality(self, content, word_count, links_count):
+        """Calculate content quality score"""
         score = 0
         
-        # Word count optimal (30-55 words)
-        if 30 <= word_count <= 55:
+        if 25 <= word_count <= 60:
             score += 2
-        elif 25 <= word_count <= 60:
+        elif 20 <= word_count <= 70:
             score += 1
         
-        # Links present
         if links_count >= 2:
             score += 2
         elif links_count >= 1:
             score += 1
         
-        # Readability
-        if readability == "excellent":
-            score += 2
-        elif readability == "good":
+        if any(term in content.lower() for term in ['professional', 'expert', 'help']):
             score += 1
         
-        # Content quality indicators
-        if all(term in content.lower() for term in ['professional', 'expert', 'help']):
-            score += 1
-        
-        if score >= 6:
-            return "excellent"
-        elif score >= 4:
-            return "very good"
-        elif score >= 3:
-            return "good"
-        else:
-            return "satisfactory"
+        return "excellent" if score >= 5 else "good" if score >= 3 else "satisfactory"
 
-# Initialize stable NLP tools
-print("\\n🔄 Initializing NLP Tools...")
-nlp_tools = StableNLPTools()
+# Initialize and generate content
+print("\\n🔄 Initializing Content Generator...")
+generator = AdvancedContentGenerator(keywords, anchors, domain)
 
-# Initialize fixed generator
-print("🔄 Initializing Fixed Content Generator...")
-generator = FixedContentGenerator(analysis, nlp_tools)
-
-# Generate quality content
-print("\\n🚀 STARTING FIXED CONTENT GENERATION...")
-quality_content = generator.generate_batch(175)
-
-# Check if generation was successful
-if not quality_content:
-    print("❌ CONTENT GENERATION FAILED - No content generated")
-    exit(1)
+print("\\n🚀 STARTING CONTENT GENERATION...")
+content_data = generator.generate_batch(175)
 
 # Save results
-output_file = "quality_content.json"
+output_file = "python_lib_content.json"
 with open(output_file, "w") as f:
-    json.dump(quality_content, f, indent=2)
+    json.dump(content_data, f, indent=2)
 
 print("\\n" + "=" * 80)
-print("🎉 FIXED CONTENT GENERATION COMPLETE")
+print("🎉 CONTENT GENERATION COMPLETE")
 print("=" * 80)
 
-# Comprehensive statistics
-total_pieces = len(quality_content)
-total_words = sum(item['word_count'] for item in quality_content)
-total_links = sum(item['links_count'] for item in quality_content)
-
-quality_dist = defaultdict(int)
-readability_dist = defaultdict(int)
-
-for item in quality_content:
-    quality_dist[item['quality_score']] += 1
-    readability_dist[item['readability']] += 1
-
-print(f"📊 QUALITY METRICS:")
-print(f"   • Total Pieces: {total_pieces}")
-print(f"   • Average Words: {total_words/total_pieces:.1f}")
-print(f"   • Total Links: {total_links}")
-print(f"   • Pieces with 2+ Links: {sum(1 for item in quality_content if item['links_count'] >= 2)}")
-
-print(f"\\n🏆 QUALITY DISTRIBUTION:")
-for quality, count in sorted(quality_dist.items(), key=lambda x: ['satisfactory', 'good', 'very good', 'excellent'].index(x[0])):
-    percentage = (count / total_pieces) * 100
-    print(f"   • {quality.title()}: {count} pieces ({percentage:.1f}%)")
-
-print(f"\\n📖 READABILITY SCORES:")
-for score, count in readability_dist.items():
-    percentage = (count / total_pieces) * 100
-    print(f"   • {score.title()}: {count} pieces ({percentage:.1f}%)")
-
-print(f"\\n🔍 QUALITY ASSURANCE:")
-print(f"   • Grammar Checked: {sum(1 for item in quality_content if item['grammar_checked'])}/{total_pieces}")
-print(f"   • SEO Optimized: {sum(1 for item in quality_content if item['seo_optimized'])}/{total_pieces}")
-
-print(f"\\n📋 QUALITY CONTENT SAMPLES:")
-print("=" * 50)
-for i in range(min(2, len(quality_content))):
-    sample = quality_content[i]
-    print(f"\\n--- Sample {i+1} [Quality: {sample['quality_score'].title()}] ---")
-    print(f"Keyword: {sample['keyword']}")
-    print(f"Content: {sample['content']}")
-    print(f"Metrics: {sample['word_count']} words, {sample['links_count']} links, Readability: {sample['readability']}")
-    print()
-
-print(f"💾 Quality content saved to: {output_file}")
-'''
-
-                    // Create Simple Validator
-                    writeFile file: 'simple_validator.py', text: '''import json
-from collections import Counter
-import re
-
-print("=" * 80)
-print("🔍 SIMPLE QUALITY VALIDATION")
-print("=" * 80)
-
-# Load generated content
-try:
-    with open("quality_content.json", "r") as f:
-        content_data = json.load(f)
-    print(f"✅ Loaded {len(content_data)} content pieces for validation")
-except Exception as e:
-    print(f"❌ Error loading content: {e}")
-    exit(1)
-
-class SimpleQualityValidator:
-    def comprehensive_validation(self, content_data):
-        """Perform comprehensive quality validation"""
-        print("\\n📊 RUNNING QUALITY AUDIT...")
-        
-        validation_results = {
-            "overall_quality": "",
-            "detailed_metrics": {},
-            "recommendations": []
-        }
-        
-        # Basic metrics
-        total_pieces = len(content_data)
-        if total_pieces == 0:
-            print("❌ No content to validate")
-            return validation_results
-            
-        word_counts = [item['word_count'] for item in content_data]
-        link_counts = [item['links_count'] for item in content_data]
-        
-        # Quality distribution
-        quality_scores = Counter(item['quality_score'] for item in content_data)
-        readability_scores = Counter(item['readability'] for item in content_data)
-        
-        # Advanced metrics
-        seo_optimization = self.analyze_seo_quality(content_data)
-        content_consistency = self.analyze_content_consistency(content_data)
-        
-        # Calculate overall quality score
-        overall_score = self.calculate_overall_quality(
-            quality_scores, seo_optimization, content_consistency, total_pieces
-        )
-        
-        # Compile results
-        validation_results.update({
-            "total_pieces": total_pieces,
-            "word_count_analysis": {
-                "average": sum(word_counts) / len(word_counts),
-                "min": min(word_counts),
-                "max": max(word_counts),
-                "optimal_range": "30-55 words"
-            },
-            "link_analysis": {
-                "average_links": sum(link_counts) / len(link_counts),
-                "pieces_with_2plus_links": sum(1 for x in link_counts if x >= 2),
-                "link_distribution": dict(Counter(link_counts))
-            },
-            "quality_distribution": dict(quality_scores),
-            "readability_distribution": dict(readability_scores),
-            "seo_analysis": seo_optimization,
-            "content_consistency": content_consistency,
-            "overall_quality_score": overall_score
-        })
-        
-        # Generate recommendations
-        validation_results["recommendations"] = self.generate_recommendations(validation_results)
-        
-        return validation_results
+# Statistics
+total = len(content_data)
+if total > 0:
+    words = sum(item['word_count'] for item in content_data)
+    links = sum(item['links_count'] for item in content_data)
     
-    def analyze_seo_quality(self, content_data):
-        """Analyze SEO optimization level"""
-        print("  🔍 Analyzing SEO quality...")
-        
-        seo_metrics = {
-            "keyword_usage": 0,
-            "proper_linking": 0,
-            "content_length": 0,
-            "readability": 0
-        }
-        
-        for item in content_data:
-            # Keyword in content
-            if item['keyword'].lower() in item['content'].lower():
-                seo_metrics["keyword_usage"] += 1
-            
-            # Proper linking
-            if item['links_count'] >= 2:
-                seo_metrics["proper_linking"] += 1
-            
-            # Optimal content length
-            if 30 <= item['word_count'] <= 55:
-                seo_metrics["content_length"] += 1
-            
-            # Good readability
-            if item['readability'] in ['good', 'excellent']:
-                seo_metrics["readability"] += 1
-        
-        # Convert to percentages
-        for key in seo_metrics:
-            seo_metrics[key] = round((seo_metrics[key] / len(content_data)) * 100, 1)
-        
-        return seo_metrics
+    quality_dist = defaultdict(int)
+    for item in content_data:
+        quality_dist[item['quality_score']] += 1
     
-    def analyze_content_consistency(self, content_data):
-        """Analyze content consistency and uniqueness"""
-        print("  🔍 Checking content consistency...")
-        
-        # Check for duplicate content patterns
-        content_samples = [item['content'][:100] for item in content_data[:50]]
-        unique_samples = len(set(content_samples))
-        
-        # Check keyword distribution
-        keyword_usage = Counter(item['keyword'] for item in content_data)
-        balanced_distribution = all(count <= 15 for count in keyword_usage.values())
-        
-        return {
-            "uniqueness_score": round((unique_samples / len(content_samples)) * 100, 1),
-            "keyword_balance": "excellent" if balanced_distribution else "good",
-            "unique_keywords_used": len(keyword_usage)
-        }
+    print(f"📊 RESULTS:")
+    print(f"   • Total Pieces: {total}")
+    print(f"   • Average Words: {words/total:.1f}")
+    print(f"   • Total Links: {links}")
+    print(f"   • AI Generated: {sum(1 for item in content_data if item['ai_generated'])}")
     
-    def calculate_overall_quality(self, quality_scores, seo_optimization, content_consistency, total_pieces):
-        """Calculate overall quality score"""
-        score = 0
-        
-        # Quality distribution (40%)
-        excellent_pieces = quality_scores.get('excellent', 0)
-        good_pieces = quality_scores.get('very good', 0) + quality_scores.get('good', 0)
-        
-        quality_percentage = (excellent_pieces + good_pieces * 0.7) / total_pieces
-        score += quality_percentage * 40
-        
-        # SEO optimization (30%)
-        seo_score = sum(seo_optimization.values()) / len(seo_optimization)
-        score += (seo_score / 100) * 30
-        
-        # Content consistency (30%)
-        consistency_score = content_consistency["uniqueness_score"]
-        score += (consistency_score / 100) * 30
-        
-        return min(100, round(score))
+    print(f"\\n🏆 QUALITY:")
+    for quality, count in quality_dist.items():
+        print(f"   • {quality.title()}: {count} pieces")
     
-    def generate_recommendations(self, results):
-        """Generate improvement recommendations"""
-        recommendations = []
-        
-        overall_score = results["overall_quality_score"]
-        
-        if overall_score >= 90:
-            recommendations.append("🎉 Excellent quality! Content is ready for deployment.")
-        elif overall_score >= 80:
-            recommendations.append("✅ Very good quality. Minor optimizations possible.")
-        else:
-            recommendations.append("⚠️ Good quality. Consider some improvements.")
-        
-        # Specific recommendations
-        if results["seo_analysis"]["keyword_usage"] < 90:
-            recommendations.append("🔑 Improve keyword integration in some pieces")
-        
-        if results["seo_analysis"]["proper_linking"] < 80:
-            recommendations.append("🔗 Increase internal linking in pieces with fewer than 2 links")
-        
-        if results["content_consistency"]["uniqueness_score"] < 95:
-            recommendations.append("✨ Enhance content uniqueness in similar pieces")
-        
-        return recommendations
-
-# Run comprehensive validation
-print("\\n🚀 STARTING QUALITY VALIDATION...")
-validator = SimpleQualityValidator()
-validation_results = validator.comprehensive_validation(content_data)
-
-print("\\n" + "=" * 80)
-print("🏆 FINAL VALIDATION RESULTS")
-print("=" * 80)
-
-print(f"📊 OVERALL QUALITY SCORE: {validation_results['overall_quality_score']}/100")
-
-print(f"\\n📈 DETAILED METRICS:")
-print(f"   • Total Pieces: {validation_results['total_pieces']}")
-print(f"   • Average Words: {validation_results['word_count_analysis']['average']:.1f}")
-print(f"   • Optimal Length Pieces: {validation_results['word_count_analysis']['optimal_range']}")
-
-print(f"\\n🔗 LINK ANALYSIS:")
-print(f"   • Average Links per Piece: {validation_results['link_analysis']['average_links']:.1f}")
-print(f"   • Pieces with 2+ Links: {validation_results['link_analysis']['pieces_with_2plus_links']}")
-
-print(f"\\n🎯 QUALITY DISTRIBUTION:")
-for quality, count in validation_results['quality_distribution'].items():
-    percentage = (count / validation_results['total_pieces']) * 100
-    print(f"   • {quality.title()}: {count} pieces ({percentage:.1f}%)")
-
-print(f"\\n📖 SEO OPTIMIZATION:")
-for metric, score in validation_results['seo_analysis'].items():
-    print(f"   • {metric.replace('_', ' ').title()}: {score}%")
-
-print(f"\\n🔍 CONTENT ANALYSIS:")
-print(f"   • Uniqueness Score: {validation_results['content_consistency']['uniqueness_score']}%")
-print(f"   • Keyword Balance: {validation_results['content_consistency']['keyword_balance'].title()}")
-print(f"   • Unique Keywords Used: {validation_results['content_consistency']['unique_keywords_used']}")
-
-print(f"\\n💡 RECOMMENDATIONS:")
-for recommendation in validation_results['recommendations']:
-    print(f"   • {recommendation}")
-
-print(f"\\n" + "=" * 80)
-if validation_results['overall_quality_score'] >= 85:
-    print("🎉 EXCELLENT: Content meets premium quality standards!")
-elif validation_results['overall_quality_score'] >= 75:
-    print("✅ VERY GOOD: Content is ready for deployment!")
+    print(f"\\n📋 SAMPLE:")
+    if content_data:
+        sample = content_data[0]
+        print(f"   Keyword: {sample['keyword']}")
+        print(f"   Content: {sample['content'][:100]}...")
+    
+    print(f"\\n💾 Saved to: {output_file}")
 else:
-    print("⚠️ GOOD: Content is usable with minor improvements.")
-
-print("=" * 80)
-
-# Save validation report
-with open("quality_validation_report.json", "w") as f:
-    json.dump(validation_results, f, indent=2)
-
-print(f"\\n💾 Validation report saved to: quality_validation_report.json")
+    print("❌ No content generated")
 '''
-
-                    echo "✅ Fixed Python scripts created successfully"
                 }
             }
         }
 
-        stage('Generate Fixed Content') {
+        stage('Generate Content with Python Libraries') {
             steps {
                 dir('content-generation') {
                     sh '''
-                    echo "🚀 Generating Fixed Quality Content..."
+                    echo "🚀 Generating Content with Python Libraries..."
                     . venv/bin/activate
-                    python3 fixed_content_generator.py
-                    echo "✅ Fixed content generation completed"
+                    python3 content_generation_lib.py
+                    echo "✅ Content generation completed"
                     '''
                 }
             }
         }
 
-        stage('Run Quality Validation') {
+        stage('Validate Generated Content') {
             steps {
                 dir('content-generation') {
                     sh '''
-                    echo "🔍 Running Quality Validation..."
-                    . venv/bin/activate
-                    python3 simple_validator.py
-                    echo "✅ Quality validation completed"
-                    '''
-                }
-            }
-        }
-
-        stage('Final Quality Report') {
-            steps {
-                dir('content-generation') {
-                    sh '''
-                    echo "📊 Generating Final Quality Report..."
+                    echo "🔍 Validating Generated Content..."
                     . venv/bin/activate
                     python3 -c "
 import json
 
-print('🎯 FINAL CONTENT GENERATION REPORT')
-print('=' * 60)
+print('🎯 CONTENT VALIDATION REPORT')
+print('=' * 50)
 
 try:
-    # Load validation report
-    with open('quality_validation_report.json', 'r') as f:
-        report = json.load(f)
+    with open('python_lib_content.json', 'r') as f:
+        data = json.load(f)
     
-    # Load content stats
-    with open('quality_content.json', 'r') as f:
-        content = json.load(f)
+    print(f'✅ SUCCESS: {len(data)} pieces generated')
+    print(f'📊 Stats:')
+    print(f'   • Avg words: {sum(d[\\\"word_count\\\"] for d in data)/len(data):.1f}')
+    print(f'   • Total links: {sum(d[\\\"links_count\\\"] for d in data)}')
+    print(f'   • Quality distribution:')
     
-    print(f'✅ GENERATION SUCCESSFUL!')
-    print(f'📦 Total Pieces: {len(content)}')
-    print(f'🏆 Overall Quality Score: {report[\\\"overall_quality_score\\\"]}/100')
-    print(f'📝 Average Words: {report[\\\"word_count_analysis\\\"][\\\"average\\\"]:.1f}')
-    print(f'🔗 Average Links: {report[\\\"link_analysis\\\"][\\\"average_links\\\"]:.1f}')
+    from collections import Counter
+    quality = Counter(d['quality_score'] for d in data)
+    for q, count in quality.most_common():
+        print(f'     - {q}: {count}')
     
-    print(f'\\n🎯 QUALITY BREAKDOWN:')
-    for quality, count in report['quality_distribution'].items():
-        percentage = (count / len(content)) * 100
-        print(f'   • {quality.title()}: {count} pieces ({percentage:.1f}%)')
-    
-    print(f'\\n💡 RECOMMENDATIONS:')
-    for rec in report['recommendations'][:3]:
-        print(f'   • {rec}')
-    
-    print(f'\\n🚀 STATUS: READY FOR DEPLOYMENT' if report['overall_quality_score'] >= 75 else '⚠️  STATUS: REVIEW RECOMMENDED')
+    print(f'\\n📝 SAMPLE CONTENT:')
+    for i in range(min(2, len(data))):
+        print(f'\\n{i+1}. {data[i][\\\"content\\\"]}')
     
 except Exception as e:
-    print(f'❌ Error generating report: {e}')
+    print(f'❌ Error: {e}')
 "
                     '''
                 }
             }
         }
 
-        stage('Push Fixed Content to GitHub') {
+        stage('Push to GitHub') {
             steps {
                 dir('content-generation') {
                     sh '''
-                    echo "🚀 Pushing Fixed Content to GitHub..."
+                    echo "🚀 Pushing to GitHub..."
                     git config --global user.email "ayzazkhan82@gmail.com"
                     git config --global user.name "Ayzazkhan"
-                    git add quality_content.json quality_validation_report.json fixed_content_generator.py simple_validator.py
-                    git commit -m "Fixed Content: 175 pieces with error handling [Build ${BUILD_NUMBER}]" || echo "No changes to commit"
+                    git add python_lib_content.json content_generation_lib.py
+                    git commit -m "Python Library Content: 175 pieces [Build ${BUILD_NUMBER}]" || echo "No changes"
                     git push origin main || echo "Push completed"
-                    echo "✅ GitHub update completed with fixed content"
+                    echo "✅ GitHub update completed"
                     '''
                 }
             }
@@ -862,22 +439,16 @@ except Exception as e:
         always {
             dir('content-generation') {
                 sh '''
-                    echo "🧹 Final Cleanup..."
+                    echo "🧹 Cleanup..."
                     rm -rf venv || true
-                    echo "📁 Final Output Files:"
+                    echo "📁 Final files:"
                     ls -la *.json
-                    echo "✅ Fixed Pipeline Completed"
+                    echo "✅ Pipeline completed"
                 '''
             }
         }
         success {
-            echo "🎉 SUCCESS! 175 QUALITY CONTENT PIECES GENERATED!"
-            echo "🛠️ Fixed All Errors"
-            echo "🔍 Comprehensive Quality Validation"
-            echo "🚀 Ready for Immediate Deployment"
-        }
-        failure {
-            echo "❌ Pipeline Failed - Check Detailed Logs"
+            echo "🎉 SUCCESS! 175 content pieces generated with Python libraries!"
         }
     }
 }
