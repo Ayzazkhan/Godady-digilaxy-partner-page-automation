@@ -45,12 +45,13 @@ print("=" * 70)
 try:
     with open("content.json", "r") as f:
         config = json.load(f)
-    domain = config.get("target_domain", "hesiexamtaker.com")
+    domain = config.get("target_domain", "economicsassignmenthelp.co.uk")
     niche = config.get("niche", "hesi exam help")
-    keywords = config.get("keywords", ["HESI exam", "nursing test", "medical exam"])
+    keywords = config.get("keywords", ["economics assignment help","economics assignment writing help","buy economics assignment","pay someone to write economics assignment","economics research paper help","economics paper","economics paper writer","order economics assignment"]
+)
 except Exception as e:
     domain = "hesiexamtaker.com"
-    niche = "hesi exam help"
+    niche = "economics assignment help"
     keywords = ["HESI exam", "nursing test", "medical exam"]
 
 print(f"🎯 Target: {domain}")
