@@ -37,12 +37,25 @@ Write a high-quality, natural, human-sounding mini article (30–40 words).
 Topic: {keyword}
 
 RULES:
-- Must sound 100% human
-- Tone: natural, SEO focused, educational
+- Content must sound 100% human, natural, and easy to read.
+- Use simple English. No tough or complex vocabulary.
+- Tone: natural, educational, and SEO-focused.
 - Insert these links exactly once each:
   {json.dumps(links)}
-- DO NOT repeat domain name: economicsassignmenthelp.co.uk. Use related terms instead.
-- Output ONLY final content. No explanation.
+- Place hyperlinks on meaningful related phrases (NOT the exact keyword). 
+  Example: “Get expert economics assignment help from UK PhD tutors” — hyperlink only on a natural phrase.
+- Do NOT repeat the domain name: economicsassignmenthelp.co.uk.
+  The domain should appear ONLY inside the hyperlink tag.
+- Anchor text must be rewritten in your own natural words (not exact match keywords).
+- Links must blend smoothly in the sentence and make the content engaging.
+- Style guide:
+  • Clear explanation  
+  • Helpful tone  
+  • Simple English  
+  • Light promotion  
+  • SEO value  
+- Output ONLY the final content. No explanation and no extra wording.
+
 """
 
     payload = {
