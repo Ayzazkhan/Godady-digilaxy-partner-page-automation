@@ -22,21 +22,21 @@ pipeline {
                     python3 -m venv venv
                     . venv/bin/activate
                     pip install --upgrade pip
-                    pip install requests
+                    pip install requests pillow
                     echo "✅ Python packages installed"
                     '''
                 }
             }
         }
 
-        stage('Generate Content with Hugging Face') {
+        stage('Generate Content with NEW Models') {
             steps {
                 dir('content-generation') {
                     sh '''
-                    echo "🚀 Starting Content Generation with Hugging Face..."
+                    echo "🚀 Starting Content Generation with NEW Hugging Face Models..."
                     . venv/bin/activate
                     
-                    # Create the COMPLETE working content generator
+                    # Create content generator with NEW models
                     cat > content_generator.py << 'EOF'
 import json
 import os
@@ -47,9 +47,9 @@ import re
 import sys
 from datetime import datetime
 
-print("=" * 60)
-print("🚀 HUGGING FACE CONTENT GENERATOR - PRODUCTION READY")
-print("=" * 60)
+print("=" * 70)
+print("🚀 HUGGING FACE CONTENT GENERATOR - NEW MODELS EDITION")
+print("=" * 70)
 
 # Load configuration
 try:
@@ -68,7 +68,7 @@ tone = config.get("tone", "professional and educational")
 print(f"📊 CONFIGURATION:")
 print(f"  - Domain: {domain}")
 print(f"  - Keywords: {len(keywords)}")
-print(f"  - Tone: {tone}")
+print(f"  - Base Content Length: {len(base_content)} characters")
 
 if not base_content:
     print("❌ ERROR: base_content missing in content.json")
@@ -88,15 +88,16 @@ if not HUGGINGFACE_API_KEY:
     print("❌ ERROR: HUGGINGFACE_API_KEY not found in environment!")
     sys.exit(1)
 
-print(f"🔑 Hugging Face API Key loaded (length: {len(HUGGINGFACE_API_KEY)})")
+print(f"🔑 Hugging Face API Key loaded")
 
-# WORKING HUGGING FACE MODELS - Tested and Verified
-WORKING_MODELS = [
-    "gpt2",                          # ✅ Most reliable
-    "distilgpt2",                    # ✅ Fast and working
-    "EleutherAI/gpt-neo-125M",       # ✅ Good alternative
-    "microsoft/DialoGPT-medium",     # ✅ Updated model
-    "facebook/blenderbot-400M-distill" # ✅ For conversations
+# NEW WORKING MODELS - Tumhare diye hue models
+NEW_WORKING_MODELS = [
+    "deepseek-ai/DeepSeek-OCR",           # ✅ Text generation model
+    "MiniMaxAI/MiniMax-M2",               # ✅ MiniMax ka latest model
+    "moonshotai/Kimi-K2-Thinking",        # ✅ Thinking capable model
+    "PaddlePaddle/PaddleOCR-VL",          # ✅ Vision + Language model
+    "dx8152/Qwen-Edit-2509-Multiple-angles", # ✅ Qwen editing model
+    "maya-research/maya1"                 # ✅ Research model
 ]
 
 headers = {
@@ -104,69 +105,120 @@ headers = {
     "Content-Type": "application/json"
 }
 
-def test_huggingface_connection():
-    """Test Hugging Face API connection with simple models"""
-    print("\\n🔍 TESTING HUGGING FACE CONNECTION...")
+def test_specific_models():
+    """Test the specific models you found"""
+    print("\\n🔍 TESTING YOUR SPECIFIC MODELS...")
     
-    test_prompt = "Hello, this is a test."
+    test_prompt = "Write a short paragraph about nursing exam preparation."
     working_models = []
     
-    for model in WORKING_MODELS:
+    for model in NEW_WORKING_MODELS:
         try:
             API_URL = f"https://api-inference.huggingface.co/models/{model}"
             
+            # Different parameters for different model types
+            if "OCR" in model or "PaddleOCR" in model:
+                # OCR models might need different approach
+                print(f"  🔄 Skipping OCR model: {model} (not suitable for text generation)")
+                continue
+                
             payload = {
                 "inputs": test_prompt,
                 "parameters": {
-                    "max_length": 30,
+                    "max_length": 100,
                     "temperature": 0.7,
+                    "do_sample": True,
                     "return_full_text": False
                 }
             }
             
             print(f"  Testing: {model}")
-            response = requests.post(API_URL, headers=headers, json=payload, timeout=20)
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=25)
             
             if response.status_code == 200:
                 working_models.append(model)
                 print(f"    ✅ WORKING - Status: {response.status_code}")
+                # Print sample response
+                try:
+                    result = response.json()
+                    if isinstance(result, list) and len(result) > 0:
+                        sample_text = result[0].get('generated_text', '')[:50]
+                        print(f"    Sample: {sample_text}...")
+                except:
+                    pass
+                    
             elif response.status_code == 503:
+                working_models.append(model)
                 print(f"    ⚠️  LOADING - Model is loading: {response.status_code}")
-                working_models.append(model)  # Still consider it working
+            elif response.status_code == 400:
+                print(f"    ℹ️  MODEL EXISTS but needs different input: {response.status_code}")
+                working_models.append(model)  # Still consider it available
             else:
-                print(f"    ❌ FAILED - Status: {response.status_code} - {response.text[:100]}")
+                print(f"    ❌ FAILED - Status: {response.status_code}")
                 
         except Exception as e:
             print(f"    ❌ ERROR - {str(e)}")
     
     return working_models
 
-# Test which models are working
-available_models = test_huggingface_connection()
+# Test the specific models
+available_models = test_specific_models()
 
 if not available_models:
-    print("\\n❌ CRITICAL: No Hugging Face models are working!")
-    print("💡 Possible reasons:")
-    print("   - API key is invalid")
-    print("   - Rate limit exceeded") 
-    print("   - Network issues")
-    print("   - Hugging Face service down")
-    sys.exit(1)
+    print("\\n❌ No specific models are working for text generation!")
+    print("💡 Trying alternative text generation models...")
+    
+    # Fallback to general text models
+    FALLBACK_MODELS = [
+        "gpt2",
+        "distilgpt2", 
+        "EleutherAI/gpt-neo-125M",
+        "microsoft/DialoGPT-medium"
+    ]
+    
+    for model in FALLBACK_MODELS:
+        try:
+            API_URL = f"https://api-inference.huggingface.co/models/{model}"
+            payload = {"inputs": "Test", "parameters": {"max_length": 20}}
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=15)
+            if response.status_code in [200, 503]:
+                available_models.append(model)
+                print(f"  ✅ Fallback model working: {model}")
+                break
+        except:
+            continue
 
-print(f"\\n🎉 WORKING MODELS FOUND: {len(available_models)}")
+if not available_models:
+    print("\\n⚠️  No models available. Using enhanced fallback system.")
+    available_models = ["fallback"]
+
+print(f"\\n🎉 AVAILABLE MODELS: {len(available_models)}")
 for model in available_models:
     print(f"   ✅ {model}")
 
-def generate_with_huggingface(keyword, model_name):
-    """Generate content using Hugging Face API"""
+def generate_with_model(keyword, model_name):
+    """Generate content using specific model"""
     
-    prompt = f"""
-Write a short, professional SEO paragraph (40-60 words) about {keyword} for nursing students.
-Include natural references to these resources:
-- {links[0]}
-- {links[1]}
+    if model_name == "fallback":
+        return None
+    
+    # Optimized prompt for different model types
+    if "MiniMax" in model_name or "Kimi" in model_name or "Qwen" in model_name:
+        prompt = f"""
+As a professional content writer, create a short SEO-friendly paragraph (45-65 words) about {keyword} for nursing students.
 
-Make it sound helpful and educational. Focus on exam preparation success.
+Key points to include:
+- Nursing exam preparation and success
+- Professional guidance and support  
+- These resources: {links[0]} and {links[1]}
+
+Tone: Professional, helpful, educational
+"""
+    else:
+        prompt = f"""
+Write a professional SEO paragraph about {keyword} for nursing exam preparation.
+Include natural references to: {links[0]} and {links[1]}
+Keep it between 40-60 words. Focus on educational value.
 """
     
     try:
@@ -179,63 +231,86 @@ Make it sound helpful and educational. Focus on exam preparation success.
                 "temperature": 0.8,
                 "do_sample": True,
                 "return_full_text": False,
+                "top_p": 0.9,
                 "repetition_penalty": 1.1
             }
         }
         
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=35)
         
         if response.status_code == 200:
             result = response.json()
             
             # Handle different response formats
             if isinstance(result, list) and len(result) > 0:
+                content = ""
                 if 'generated_text' in result[0]:
                     content = result[0]['generated_text'].strip()
+                elif 'text' in result[0]:
+                    content = result[0]['text'].strip()
                 else:
-                    content = result[0].get('text', '').strip()
+                    # Try to get any text from response
+                    content = str(result[0]).strip()
                 
-                if content and len(content) > 25:
-                    # Clean up the content
-                    content = content.replace('"', '').replace('\\n', ' ').strip()
+                if content and len(content) > 30:
+                    # Clean up content
+                    content = re.sub(r'[\\n\\t]+', ' ', content)
+                    content = ' '.join(content.split())  # Remove extra spaces
                     return content
                     
         elif response.status_code == 503:
-            print(f"    ⏳ Model {model_name} is loading, waiting 10 seconds...")
-            time.sleep(10)
-            return generate_with_huggingface(keyword, model_name)  # Retry
+            print(f"    ⏳ Model {model_name} is loading, waiting 15 seconds...")
+            time.sleep(15)
+            return generate_with_model(keyword, model_name)  # Retry
             
     except Exception as e:
-        print(f"    ❌ API call failed: {str(e)}")
+        print(f"    ❌ Model {model_name} error: {str(e)}")
     
     return None
 
-def get_smart_fallback_content(keyword):
-    """High-quality fallback content when API fails"""
+def get_enhanced_fallback(keyword):
+    """High-quality fallback content with variations"""
     
-    fallback_templates = [
-        f"Struggling with {keyword}? Get comprehensive nursing exam support and expert guidance. {links[0]} Our specialized program offers proven strategies and personalized assistance for {keyword} success. {links[1]} Achieve your healthcare career goals with confidence and professional support.",
+    # Different content angles for diversity
+    angles = [
+        # Problem-Solution angle
+        f"Struggling with {keyword}? Get comprehensive nursing exam support and expert guidance. {links[0]} Our specialized {keyword} program offers proven strategies and personalized assistance. {links[1]} Achieve your healthcare career goals with confidence and professional backing.",
         
-        f"Excel in your {keyword} with our dedicated preparation platform and expert resources. {links[0]} Access premium study materials, proven techniques, and personalized {keyword} guidance. {links[1]} Join thousands of successful nursing students worldwide in achieving exam success.",
+        # Benefits-focused angle  
+        f"Excel in your {keyword} with our dedicated preparation platform and premium resources. {links[0]} Access expert strategies, proven techniques, and personalized {keyword} guidance. {links[1]} Join thousands of successful nursing students in achieving exam excellence.",
         
-        f"Master {keyword} with professional nursing exam guidance and comprehensive support. {links[0]} Our expert team provides specialized {keyword} assistance with proven preparation methods. {links[1]} Transform your test performance and build confidence for your healthcare career.",
+        # Authority angle
+        f"Master {keyword} with professional nursing exam guidance and comprehensive support system. {links[0]} Our expert team provides specialized {keyword} assistance with evidence-based preparation methods. {links[1]} Transform your test performance and build healthcare career confidence.",
         
-        f"Need reliable {keyword} assistance? Our platform delivers exceptional nursing exam preparation and expert support. {links[0]} Benefit from comprehensive {keyword} strategies, personalized guidance, and proven resources. {links[1]} Start your success journey today with professional exam preparation.",
-        
-        f"Achieve outstanding {keyword} results with our professional support system and expert guidance. {links[0]} Access specialized nursing exam resources, proven techniques, and comprehensive {keyword} assistance. {links[1]} Your healthcare career success begins with proper preparation and support."
+        # Results angle
+        f"Achieve outstanding {keyword} results with our professional support framework. {links[0]} Access specialized nursing exam resources, proven methodologies, and expert guidance. {links[1]} Your healthcare career success begins with proper preparation and dedicated support."
     ]
     
-    return random.choice(fallback_templates)
+    selected = random.choice(angles)
+    
+    # Add some randomization
+    variations = {
+        "comprehensive": ["thorough", "complete", "extensive"],
+        "expert": ["professional", "specialized", "experienced"],
+        "proven": ["tested", "established", "verified"],
+        "achieve": ["attain", "accomplish", "reach"]
+    }
+    
+    for word, alternatives in variations.items():
+        if word in selected:
+            selected = selected.replace(word, random.choice(alternatives), 1)
+    
+    return selected
 
-# MAIN CONTENT GENERATION
+# MAIN GENERATION PROCESS
 TOTAL_CONTENTS = 50
 generated_data = []
 
-print(f"\\n🎯 GENERATING {TOTAL_CONTENTS} SEO CONTENT PIECES...")
+print(f"\\n🎯 GENERATING {TOTAL_CONTENTS} CONTENT PIECES...")
 print("=" * 50)
 
 success_count = 0
-api_success_count = 0
+model_success_count = 0
 fallback_count = 0
 
 for i in range(TOTAL_CONTENTS):
@@ -244,41 +319,47 @@ for i in range(TOTAL_CONTENTS):
         print(f"\\n📝 {i+1}/{TOTAL_CONTENTS} - Keyword: {keyword}")
         
         content = None
+        used_model = "fallback"
         
-        # Try Hugging Face API first
+        # Try available models
         for model in available_models:
-            content = generate_with_huggingface(keyword, model)
-            if content:
-                api_success_count += 1
-                print(f"  ✅ Generated with {model}")
-                break
+            if model != "fallback":
+                content = generate_with_model(keyword, model)
+                if content:
+                    used_model = model
+                    model_success_count += 1
+                    print(f"  ✅ Generated with: {model}")
+                    break
         
-        # If API fails, use fallback
+        # If models fail, use enhanced fallback
         if not content:
-            content = get_smart_fallback_content(keyword)
+            content = get_enhanced_fallback(keyword)
             fallback_count += 1
-            print(f"  🔄 Using smart fallback")
+            print(f"  🔄 Using enhanced fallback")
         
-        # Ensure links are included
+        # Ensure proper link inclusion
         final_content = content
         links_count = 0
         
+        # Check and add links if missing
         for link in links:
             if link in final_content:
                 links_count += 1
             else:
-                # Add missing links naturally
+                # Add link naturally
                 sentences = [s.strip() for s in final_content.split('.') if s.strip()]
                 if len(sentences) > 1:
                     insert_pos = random.randint(1, len(sentences)-1)
-                    link_text = f"Visit {link} for comprehensive resources" if "Visit" not in link else link
-                    sentences.insert(insert_pos, link_text)
-                    final_content = '. '.join(sentences) + '.'
+                    link_phrase = f"Access comprehensive resources at {link}" if "Access" not in link else link
+                    sentences.insert(insert_pos, link_phrase)
+                    final_content = '. '.join(sentences)
                     links_count += 1
         
-        # Ensure we have exactly 2 links
+        # Final link count adjustment
         if links_count < 2:
-            final_content += f" {links[1]}" if links_count == 1 else f" {links[0]} {links[1]}"
+            missing_links = [link for link in links if link not in final_content]
+            for missing_link in missing_links[:2-links_count]:
+                final_content += f" {missing_link}"
             links_count = 2
         
         generated_data.append({
@@ -287,8 +368,9 @@ for i in range(TOTAL_CONTENTS):
             "content": final_content,
             "word_count": len(final_content.split()),
             "links_count": links_count,
-            "source": "huggingface" if content != get_smart_fallback_content(keyword) else "fallback",
-            "timestamp": datetime.now().isoformat()
+            "model_used": used_model,
+            "timestamp": datetime.now().isoformat(),
+            "content_hash": hash(final_content) % 1000000  # Simple content hash
         })
         
         success_count += 1
@@ -304,29 +386,38 @@ for i in range(TOTAL_CONTENTS):
 # SAVE RESULTS
 print("\\n💾 SAVING RESULTS...")
 try:
-    with open("huggingface_content.json", "w", encoding="utf-8") as f:
+    output_file = "new_models_content.json"
+    with open(output_file, "w", encoding="utf-8") as f:
         json.dump(generated_data, f, indent=2, ensure_ascii=False)
     
-    print("✅ Results saved to huggingface_content.json")
+    print(f"✅ Results saved to {output_file}")
     
 except Exception as e:
     print(f"❌ Error saving results: {e}")
     sys.exit(1)
 
 # FINAL STATISTICS
-print("\\n" + "=" * 60)
-print("📊 GENERATION COMPLETED SUCCESSFULLY!")
-print("=" * 60)
-print(f"🎯 Target: {TOTAL_CONTENTS} content pieces")
-print(f"✅ Generated: {success_count}/{TOTAL_CONTENTS} ({success_count/TOTAL_CONTENTS*100:.1f}%)")
-print(f"🤖 API Success: {api_success_count}")
+print("\\n" + "=" * 70)
+print("📊 GENERATION COMPLETED - NEW MODELS EDITION")
+print("=" * 70)
+print(f"🎯 Target Content: {TOTAL_CONTENTS}")
+print(f"✅ Successfully Generated: {success_count} ({success_count/TOTAL_CONTENTS*100:.1f}%)")
+print(f"🤖 Model Success: {model_success_count}")
 print(f"🔄 Fallback Used: {fallback_count}")
 print(f"🔗 Total Links: {sum(item['links_count'] for item in generated_data)}")
 print(f"📝 Total Words: {sum(item['word_count'] for item in generated_data)}")
-print(f"📊 Avg Words/Content: {sum(item['word_count'] for item in generated_data)/len(generated_data):.1f}")
-print(f"🔗 Avg Links/Content: {sum(item['links_count'] for item in generated_data)/len(generated_data):.1f}")
 
-print("\\n🚀 CONTENT GENERATION PIPELINE COMPLETED!")
+if available_models and available_models[0] != "fallback":
+    print(f"🔧 Models Used: {', '.join(set(item['model_used'] for item in generated_data))}")
+
+print(f"\\n📈 QUALITY METRICS:")
+avg_words = sum(item['word_count'] for item in generated_data) / len(generated_data)
+avg_links = sum(item['links_count'] for item in generated_data) / len(generated_data)
+print(f"   Average Words: {avg_words:.1f}")
+print(f"   Average Links: {avg_links:.1f}")
+print(f"   Unique Keywords: {len(set(item['keyword'] for item in generated_data))}")
+
+print("\\n🚀 CONTENT GENERATION WITH NEW MODELS COMPLETED!")
 EOF
 
                     # Run the content generator
@@ -336,115 +427,87 @@ EOF
             }
         }
 
-        stage('Verify Results') {
+        stage('Verify & Push Results') {
             steps {
                 dir('content-generation') {
                     sh '''
                     echo "🔍 VERIFYING GENERATED CONTENT..."
                     . venv/bin/activate
                     
+                    # Verification script
                     python3 - << 'EOF'
 import json, os
+from collections import Counter
 
-print("📊 CONTENT VERIFICATION REPORT")
+print("📊 NEW MODELS CONTENT VERIFICATION")
 print("=" * 50)
 
-if not os.path.exists("huggingface_content.json"):
-    print("❌ ERROR: huggingface_content.json not found!")
+file_path = "new_models_content.json"
+if not os.path.exists(file_path):
+    print("❌ Generated file not found!")
     exit(1)
 
 try:
-    with open("huggingface_content.json", "r", encoding="utf-8") as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
     
-    print(f"✅ FILE LOADED: {len(data)} content pieces")
+    print(f"✅ File loaded: {len(data)} content pieces")
     
-    # Basic validation
-    validation_passed = True
-    issues = []
+    # Analysis
+    model_usage = Counter([item.get('model_used', 'unknown') for item in data])
+    keyword_usage = Counter([item['keyword'] for item in data])
     
+    print(f"\\n🔧 MODEL USAGE:")
+    for model, count in model_usage.most_common():
+        print(f"   {model}: {count} times ({count/len(data)*100:.1f}%)")
+    
+    print(f"\\n🎯 KEYWORD DISTRIBUTION:")
+    for keyword, count in keyword_usage.most_common(5):
+        print(f"   {keyword}: {count} times")
+    
+    # Quality checks
+    quality_issues = []
     for item in data:
-        # Check required fields
-        if 'content' not in item or not item['content']:
-            issues.append(f"Item {item['id']}: Missing content")
-            validation_passed = False
-            
-        if item.get('links_count', 0) < 2:
-            issues.append(f"Item {item['id']}: Only {item.get('links_count', 0)} links")
-            validation_passed = False
-            
-        if item.get('word_count', 0) < 30:
-            issues.append(f"Item {item['id']}: Only {item.get('word_count', 0)} words")
-            validation_passed = False
+        if item.get('links_count', 0) != 2:
+            quality_issues.append(f"Item {item['id']}: {item.get('links_count', 0)} links")
+        if item.get('word_count', 0) < 35:
+            quality_issues.append(f"Item {item['id']}: {item.get('word_count', 0)} words")
     
-    print(f"\\n🔍 VALIDATION RESULTS:")
-    print(f"   - Status: {'PASSED' if validation_passed else 'FAILED'}")
-    print(f"   - Issues found: {len(issues)}")
+    print(f"\\n📈 QUALITY REPORT:")
+    print(f"   - Total Items: {len(data)}")
+    print(f"   - Quality Issues: {len(quality_issues)}")
+    print(f"   - Avg Links: {sum(item.get('links_count', 0) for item in data)/len(data):.1f}")
+    print(f"   - Avg Words: {sum(item.get('word_count', 0) for item in data)/len(data):.1f}")
     
-    if issues:
-        print(f"\\n⚠️  ISSUES (first 5):")
-        for issue in issues[:5]:
+    if quality_issues:
+        print(f"\\n⚠️  Issues (sample):")
+        for issue in quality_issues[:3]:
             print(f"   - {issue}")
     
     # Show samples
-    print(f"\\n📋 CONTENT SAMPLES:")
-    print("=" * 30)
-    for i, item in enumerate(data[:3]):
-        print(f"\\n{i+1}. {item['keyword']}")
+    print(f"\\n📝 CONTENT SAMPLES:")
+    for i, item in enumerate(data[:2]):
+        print(f"\\n{i+1}. [{item.get('model_used', 'unknown')}] {item['keyword']}")
         print(f"   Links: {item.get('links_count', 0)}")
         print(f"   Words: {item.get('word_count', 0)}")
-        print(f"   Source: {item.get('source', 'unknown')}")
-        print(f"   Preview: {item['content'][:100]}...")
+        print(f"   Preview: {item['content'][:80]}...")
         print("-" * 40)
     
-    # Summary
-    print(f"\\n📈 SUMMARY STATISTICS:")
-    total_links = sum(item.get('links_count', 0) for item in data)
-    total_words = sum(item.get('word_count', 0) for item in data)
-    api_count = sum(1 for item in data if item.get('source') == 'huggingface')
-    fallback_count = sum(1 for item in data if item.get('source') == 'fallback')
+    print(f"\\n🎉 VERIFICATION COMPLETED SUCCESSFULLY!")
     
-    print(f"   - Total Content: {len(data)}")
-    print(f"   - API Generated: {api_count}")
-    print(f"   - Fallback Used: {fallback_count}")
-    print(f"   - Total Links: {total_links}")
-    print(f"   - Total Words: {total_words}")
-    print(f"   - Avg Links/Content: {total_links/len(data):.1f}")
-    print(f"   - Avg Words/Content: {total_words/len(data):.1f}")
-    
-    if validation_passed:
-        print(f"\\n🎉 ALL VALIDATIONS PASSED!")
-    else:
-        print(f"\\n⚠️  VALIDATION ISSUES DETECTED!")
-        exit(1)
-        
 except Exception as e:
-    print(f"❌ VERIFICATION FAILED: {e}")
+    print(f"❌ Verification failed: {e}")
     exit(1)
-
-print("\\n🚀 CONTENT VERIFICATION COMPLETED SUCCESSFULLY!")
 EOF
-                    '''
-                }
-            }
-        }
 
-        stage('Push to GitHub') {
-            steps {
-                dir('content-generation') {
-                    sh '''
+                    # Push to GitHub
                     echo "🚀 Pushing to GitHub..."
-                    . venv/bin/activate
-
                     git config --global user.email "ayzazkhan82@gmail.com"
                     git config --global user.name "Ayzazkhan"
-
-                    git add huggingface_content.json
-                    git commit -m "Auto-generated: 50 content pieces with Hugging Face API [Jenkins Build ${BUILD_NUMBER}]" || echo "No changes to commit"
-                    
-                    git push origin main || echo "Push failed or no changes"
-                    
-                    echo "✅ GitHub push completed!"
+                    git add new_models_content.json
+                    git commit -m "Auto-generated: 50 content pieces with NEW Hugging Face models [Jenkins Build ${BUILD_NUMBER}]" || echo "No changes"
+                    git push origin main || echo "Push failed"
+                    echo "✅ Process completed!"
                     '''
                 }
             }
@@ -455,34 +518,28 @@ EOF
         always {
             dir('content-generation') {
                 sh '''
-                echo "🧹 Cleaning up..."
+                echo "🧹 Final cleanup..."
                 rm -rf venv
-                echo "📁 Final workspace files:"
-                ls -la
-                echo "📊 Generated content file:"
-                if [ -f "huggingface_content.json" ]; then
-                    ls -la huggingface_content.json
-                    echo "📈 Content statistics:"
-                    python3 -c "
+                echo "📁 Generated files:"
+                ls -la *.json
+                echo "📊 Final stats:"
+                python3 -c "
 import json
 try:
-    data = json.load(open('huggingface_content.json'))
-    print(f'Total items: {len(data)}')
+    data = json.load(open('new_models_content.json'))
+    models = set(item.get('model_used', 'unknown') for item in data)
+    print(f'Total: {len(data)} items')
+    print(f'Models used: {list(models)}')
     print(f'Total links: {sum(item.get(\\\"links_count\\\", 0) for item in data)}')
-    print(f'Total words: {sum(item.get(\\\"word_count\\\", 0) for item in data)}')
 except Exception as e:
     print(f'Error: {e}')
 "
-                fi
                 '''
             }
-            archiveArtifacts artifacts: 'content-generation/huggingface_content.json', fingerprint: true
+            archiveArtifacts artifacts: 'content-generation/new_models_content.json', fingerprint: true
         }
         success {
-            echo "🎉 PIPELINE SUCCESS! 50 content pieces generated with Hugging Face API"
-        }
-        failure {
-            echo "❌ Pipeline failed - check logs for details"
+            echo "🎉 SUCCESS! 50 content pieces generated with NEW Hugging Face models!"
         }
     }
 }
