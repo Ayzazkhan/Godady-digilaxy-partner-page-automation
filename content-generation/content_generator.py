@@ -31,28 +31,26 @@ print("🎯 Keywords to process:", len(keywords))
 # Generate Content Function
 # --------------------------
 def generate_content(keyword):
-   prompt = f"""
-    You are an SEO expert and professional human content writer.
-    
-    Write a short, natural, human-sounding promotional paragraph (35–45 words).
-    Topic: {keyword}
-    
-    RULES:
-    - Use simple English only. No difficult or complex vocabulary.
-    - Tone: friendly, educational, helpful, SEO-focused.
-    - Must sound like a real human writer, not AI.
-    - The model will decide the best natural keyword/phrase for each link
-    - Use hyperlinks naturally—place them on meaningful phrases, NOT the exact keyword.
-      Example: “Get expert economics assignment help from UK PhD tutors” (hyperlink only the natural phrase).
-    - Do NOT show the domain name: {domain}. It should ONLY appear inside the hyperlink tag.
-    - Anchor text must be rewritten naturally (not exact-match keywords).
-    - Style: clear, smooth, meaningful, helpful, light promotional, simple sentences.
-    - Match this style example:
-      “Get expert <a href='https://www.economicsassignmenthelp.co.uk'>economics assignment help</a> from UK PhD <a href='https://www.economicsassignmenthelp.co.uk'>economics assignment experts</a>, specialising in economics essays, dissertations, and homework for Microeconomics, Macroeconomics, and Econometrics.”
-    - give me 20 content   
-    - Output ONLY the final paragraph. No explanation.
-    """
+    prompt = f"""
+You are an SEO expert and professional human content writer.
 
+Write a short, natural, human-sounding promotional paragraph (35–45 words).
+Topic: {keyword}
+
+RULES:
+- Use simple English only. No difficult or complex vocabulary.
+- Tone: friendly, educational, helpful, SEO-focused.
+- Must sound like a real human writer, not AI.
+- The model will decide the best natural keyword/phrase for each link.
+- Use hyperlinks naturally—place them on meaningful phrases, NOT the exact keyword.
+- Do NOT show the domain name: {domain}. It should ONLY appear inside the hyperlink tag.
+- Anchor text must be rewritten naturally (not exact-match keywords).
+- Style: clear, smooth, meaningful, helpful, simple sentences.
+- Match this style example:
+  “Get expert <a href='https://www.economicsassignmenthelp.co.uk'>economics assignment help</a> from UK PhD <a href='https://www.economicsassignmenthelp.co.uk'>economics assignment experts</a>…”
+- Give me 20 content.
+- Output ONLY the final paragraph. No explanation.
+"""
 
     payload = {
         "model": MODEL,
@@ -74,9 +72,6 @@ def generate_content(keyword):
         return None
 
     data = response.json()
-
-    # DEEPSEEK FREE returns result like this:
-    #   data["choices"][0]["message"]["content"]
 
     try:
         return data["choices"][0]["message"]["content"].strip()
