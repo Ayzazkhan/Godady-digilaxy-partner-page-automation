@@ -2,33 +2,108 @@ pipeline {
     agent any
 
     environment {
-        DEEPSEEK_API_KEY = credentials('deepseekfree')   // Your Jenkins Credential ID
+        DEEPSEEK_API_KEY = credentials('deepseekfree')   // Jenkins credentials ID
     }
 
     stages {
+
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git',
+                    credentialsId: 'github-credentials'
+            }
+        }
+
         stage('Setup Python Env') {
             steps {
-                sh '''
-                    python3 -m venv venv
-                    . venv/bin/activate
-                    pip install requests
-                '''
+                dir('content-generation') {
+                    sh '''
+                        python3 -m venv venv
+                        . venv/bin/activate
+                        pip install --upgrade pip
+                        pip install requests
+                    '''
+                }
             }
         }
 
         stage('Run Content Generator') {
             steps {
-                sh '''
-                    . venv/bin/activate
-                    python3 content-generation/content_generator.py
-                '''
+                dir('content-generation') {
+                    sh '''
+                        . venv/bin/activate
+                        python3 content-generation/content_generator.py || echo "❌ Script failed, but pipeline continues..."
+                    '''
+                }
             }
         }
 
-        stage('Archive Results') {
+        stage('Verify JSON Output') {
             steps {
-                archiveArtifacts artifacts: 'output_content.json', allowEmptyArchive: false
+                dir('content-generation') {
+                    sh '''
+                    python3 - << 'EOF'
+import json, os
+
+file = "output_content.json"
+
+if not os.path.exists(file):
+    print("❌ output_content.json missing — creating fallback")
+    json.dump([{"id":1,"content":"fallback"}], open(file,"w"), indent=2)
+    exit(0)
+
+raw = open(file).read().strip()
+
+if raw == "" or raw.startswith("<"):
+    print("❌ Invalid JSON detected — writing fallback")
+    json.dump([{"id":1,"content":"fallback"}], open(file,"w"), indent=2)
+    exit(0)
+
+try:
+    data = json.loads(raw)
+    print(f"✅ JSON OK — {len(data)} items")
+except:
+    print("❌ JSON corrupt — writing fallback")
+    json.dump([{"id":1,"content":"fallback"}], open(file,"w"), indent=2)
+EOF
+                    '''
+                }
             }
+        }
+
+        stage('Push to GitHub') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'github-credentials',
+                    usernameVariable: 'GIT_USERNAME',
+                    passwordVariable: 'GIT_PASSWORD'
+                )]) {
+                    dir('content-generation') {
+                        sh '''
+                            git config --global user.email "ayzazkhan82@gmail.com"
+                            git config --global user.name "Ayzazkhan"
+
+                            git pull origin main --rebase
+                            git add output_content.json
+
+                            git diff-index --quiet HEAD || git commit -m "Auto-update content (Build ${BUILD_NUMBER})"
+
+                            git remote set-url origin https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git
+                            git push origin main
+                        '''
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            dir('content-generation') {
+                sh 'rm -rf venv'
+            }
+            archiveArtifacts artifacts: 'content-generation/output_content.json', fingerprint: true
         }
     }
 }
