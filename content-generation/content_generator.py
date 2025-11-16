@@ -31,32 +31,28 @@ print("🎯 Keywords to process:", len(keywords))
 # Generate Content Function
 # --------------------------
 def generate_content(keyword):
-    prompt = f"""
-You are an SEO and content writing expert.
-Write a high-quality, natural, human-sounding mini article (30–40 words).
+   prompt = f"""
+You are an SEO expert and professional human content writer.
+
+Write a short, natural, human-sounding promotional paragraph (35–45 words).
 Topic: {keyword}
 
 RULES:
-- Content must sound 100% human, natural, and easy to read.
-- Use simple English. No tough or complex vocabulary.
-- Tone: natural, educational, and SEO-focused.
-- Insert these links exactly once each:
-  {json.dumps(links)}
-- Place hyperlinks on meaningful related phrases (NOT the exact keyword). 
-  Example: “Get expert economics assignment help from UK PhD tutors” — hyperlink only on a natural phrase.
-- Do NOT repeat the domain name: economicsassignmenthelp.co.uk.
-  The domain should appear ONLY inside the hyperlink tag.
-- Anchor text must be rewritten in your own natural words (not exact match keywords).
-- Links must blend smoothly in the sentence and make the content engaging.
-- Style guide:
-  • Clear explanation  
-  • Helpful tone  
-  • Simple English  
-  • Light promotion  
-  • SEO value  
-- Output ONLY the final content. No explanation and no extra wording.
-
+- Use simple English only. No difficult or complex vocabulary.
+- Tone: friendly, educational, helpful, SEO-focused.
+- Must sound like a real human writer, not AI.
+- The model will decide the best natural keyword/phrase for each link
+- Use hyperlinks naturally—place them on meaningful phrases, NOT the exact keyword.
+  Example: “Get expert economics assignment help from UK PhD tutors” (hyperlink only the natural phrase).
+- Do NOT show the domain name: {domain}. It should ONLY appear inside the hyperlink tag.
+- Anchor text must be rewritten naturally (not exact-match keywords).
+- Style: clear, smooth, meaningful, helpful, light promotional, simple sentences.
+- Match this style example:
+  “Get expert <a href='https://www.economicsassignmenthelp.co.uk'>economics assignment help</a> from UK PhD <a href='https://www.economicsassignmenthelp.co.uk'>economics assignment experts</a>, specialising in economics essays, dissertations, and homework for Microeconomics, Macroeconomics, and Econometrics.”
+- give me 20 content   
+- Output ONLY the final paragraph. No explanation.
 """
+
 
     payload = {
         "model": MODEL,
