@@ -95,7 +95,7 @@ for keyword in keywords:
 
     keyword_contents = []   # store 20 content for each keyword
 
-    for i in range(1, 11:
+    for i in range(1, 11):
         print(f"📝 Generating {i}/10 for: {keyword}")
         content = generate_content(keyword)
 
