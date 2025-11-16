@@ -20,7 +20,7 @@ pipeline {
             steps {
                 sh '''
                     . venv/bin/activate
-                    python3 content_generator.py
+                    python3 content-generation/content_generator.py
                 '''
             }
         }
