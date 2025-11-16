@@ -2,116 +2,33 @@ pipeline {
     agent any
 
     environment {
-        DEEPSEEK_API_KEY = credentials('deepsekkapi')
+        DEEPSEEK_API_KEY = credentials('deepseekfree')   // Your Jenkins Credential ID
     }
 
     stages {
-
-        stage('Checkout Code') {
+        stage('Setup Python Env') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git',
-                    credentialsId: 'github-credentials'
-            }
-        }
-
-        stage('Setup Python Environment') {
-            steps {
-                dir('content-generation') {
-                    sh '''
+                sh '''
                     python3 -m venv venv
                     . venv/bin/activate
-                    pip install --upgrade pip
                     pip install requests
-                    '''
-                }
+                '''
             }
         }
 
-        stage('Generate Content') {
+        stage('Run Content Generator') {
             steps {
-                dir('content-generation') {
-                    sh '''
+                sh '''
                     . venv/bin/activate
-                    python3 content_generator.py || echo "❌ Script error — continuing safely..."
-                    '''
-                }
+                    python3 content_generator.py
+                '''
             }
         }
 
-        stage('Verify Content (Safe)') {
+        stage('Archive Results') {
             steps {
-                dir('content-generation') {
-                    sh '''
-                    echo "🔍 SAFE VERIFICATION STARTED..."
-
-                    python3 - << 'EOF'
-import json, os
-
-file = "output.json"
-
-if not os.path.exists(file):
-    print("❌ File missing. Creating fallback JSON...")
-    fallback = [{"id":1, "content":"fallback", "links_count":0}]
-    json.dump(fallback, open(file,"w"), indent=2)
-    exit(0)
-
-raw = open(file,"r",encoding="utf-8").read().strip()
-
-if raw == "" or raw.startswith("<") or raw.startswith("Error"):
-    print("❌ Invalid JSON content. Creating fallback...")
-    fallback = [{"id":1, "content":"fallback", "links_count":0}]
-    json.dump(fallback, open(file,"w"), indent=2)
-    exit(0)
-
-try:
-    data = json.loads(raw)
-    print(f"✅ JSON OK — {len(data)} items")
-except Exception as e:
-    print("❌ JSON parse failed:", e)
-    print("⚠ Writing fallback JSON...")
-    fallback = [{"id":1, "content":"fallback", "links_count":0}]
-    json.dump(fallback, open(file,"w"), indent=2)
-EOF
-                    '''
-                }
+                archiveArtifacts artifacts: 'output_content.json', allowEmptyArchive: false
             }
-        }
-
-        stage('Push to GitHub') {
-            steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'github-credentials',
-                    usernameVariable: 'GIT_USERNAME',
-                    passwordVariable: 'GIT_PASSWORD'
-                )]) {
-                    dir('content-generation') {
-                        sh '''
-                        echo "🚀 Preparing to push changes..."
-
-                        git config --global user.email "ayzazkhan82@gmail.com"
-                        git config --global user.name "Ayzazkhan"
-
-                        git status
-                        git pull origin main --rebase
-
-                        git add output.json
-                        git diff-index --quiet HEAD || git commit -m "Auto-generated content (Jenkins Build ${BUILD_NUMBER})"
-
-                        git remote set-url origin https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git
-                        git push origin main
-                        echo "✅ Successfully pushed to GitHub!"
-                        '''
-                    }
-                }
-            }
-        }
-    }
-
-    post {
-        always {
-            sh 'rm -rf content-generation/venv'
-            archiveArtifacts artifacts: 'content-generation/output.json', fingerprint: true
         }
     }
 }
