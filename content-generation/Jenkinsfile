@@ -8,7 +8,7 @@ pipeline {
                     sh '''
                     echo "🐍 Setting up Python environment..."
                     python3 -m venv venv || python -m venv venv
-                    source venv/bin/activate
+                    . venv/bin/activate || true
                     pip install --upgrade pip
                     pip install requests beautifulsoup4 urllib3
                     echo "✅ Python environment ready"
@@ -22,9 +22,8 @@ pipeline {
                 dir('content-generation') {
                     sh '''
                     echo "🔍 DEEP WEBSITE ANALYSIS..."
-                    source venv/bin/activate
-                    
-                    python3 - << 'EOF'
+                    # Direct Python execution without activate
+                    python3 -c "
 import json
 import requests
 from bs4 import BeautifulSoup
@@ -32,32 +31,30 @@ import re
 from collections import Counter
 import urllib.parse
 
-print("=" * 60)
-print("🔍 ADVANCED WEBSITE ANALYSIS")
-print("=" * 60)
+print('=' * 60)
+print('🔍 ADVANCED WEBSITE ANALYSIS')
+print('=' * 60)
 
 # Load config
-with open("content.json", "r") as f:
-    config = json.load(f)
-
-domain = config.get("target_domain", "hesiexamtaker.com")
-print(f"🌐 Analyzing: {domain}")
+try:
+    with open('content.json', 'r') as f:
+        config = json.load(f)
+    domain = config.get('target_domain', 'hesiexamtaker.com')
+    print(f'🌐 Analyzing: {domain}')
+except:
+    domain = 'hesiexamtaker.com'
+    print('⚠️ Using default domain:', domain)
 
 def extract_natural_patterns(soup, url):
-    """Extract natural writing patterns from website"""
-    
     all_content = []
     natural_phrases = []
     
-    # Extract all readable content
     for tag in ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'span', 'div']:
         elements = soup.find_all(tag)
         for element in elements:
             text = element.get_text().strip()
             if len(text) > 20 and not any(x in text.lower() for x in ['cookie', 'privacy', 'terms']):
                 all_content.append(text)
-                
-                # Extract natural sentence patterns
                 sentences = re.split(r'[.!?]+', text)
                 for sentence in sentences:
                     clean_sentence = sentence.strip()
@@ -67,17 +64,13 @@ def extract_natural_patterns(soup, url):
     return all_content, natural_phrases
 
 def analyze_content_structure(all_content):
-    """Analyze content structure and patterns"""
-    
     word_freq = Counter()
     sentence_patterns = []
     
     for content in all_content:
-        # Word frequency
         words = re.findall(r'\\b[a-zA-Z]{3,}\\b', content.lower())
         word_freq.update(words)
         
-        # Sentence structure analysis
         sentences = re.split(r'[.!?]+', content)
         for sentence in sentences:
             words_in_sentence = sentence.strip().split()
@@ -91,16 +84,12 @@ def analyze_content_structure(all_content):
     return word_freq, sentence_patterns
 
 def extract_key_phrases(word_freq, top_n=50):
-    """Extract meaningful key phrases"""
-    
     stop_words = {'the', 'and', 'for', 'with', 'this', 'that', 'are', 'from', 'have', 'has', 'had'}
     meaningful_words = [(word, count) for word, count in word_freq.most_common() 
                        if word not in stop_words and count > 1]
-    
     return [word for word, count in meaningful_words[:top_n]]
 
 def extract_content_themes(content_list):
-    """Extract main content themes"""
     themes = []
     all_text = ' '.join(content_list).lower()
     
@@ -118,7 +107,6 @@ def extract_content_themes(content_list):
     return themes if themes else ['exam_preparation', 'academic_support']
 
 def analyze_writing_style(content_list):
-    """Analyze writing style"""
     if not content_list:
         return 'professional_conversational'
     
@@ -133,50 +121,40 @@ def analyze_writing_style(content_list):
 
 try:
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Accept-Encoding': 'gzip, deflate',
-        'Connection': 'keep-alive',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
     }
     
-    # Analyze main page first
-    main_url = f"https://{domain}"
-    print(f"📄 Analyzing main page: {main_url}")
+    main_url = f'https://{domain}'
+    print(f'📄 Analyzing main page: {main_url}')
     
     response = requests.get(main_url, headers=headers, timeout=15)
     soup = BeautifulSoup(response.content, 'html.parser')
     
-    # Extract content and patterns
     all_site_content, natural_phrases = extract_natural_patterns(soup, main_url)
     
-    # Extract internal links from main page
     all_links = []
     links = soup.find_all('a', href=True)
     for link in links:
         href = link.get('href')
         link_text = link.get_text().strip()
         if href and len(link_text) > 3:
-            # Handle relative URLs
             if href.startswith('/'):
-                full_url = f"https://{domain}{href}"
+                full_url = f'https://{domain}{href}'
             elif domain in href:
                 full_url = href
             else:
                 continue
-                
             all_links.append({
                 'text': link_text,
                 'url': full_url
             })
     
-    print(f"✅ Found {len(all_links)} internal links")
+    print(f'✅ Found {len(all_links)} internal links')
     
-    # Analyze content structure
     word_freq, sentence_patterns = analyze_content_structure(all_site_content)
     key_phrases = extract_key_phrases(word_freq)
     
-    # Create comprehensive analysis
     analysis_data = {
         'brand_voice_characteristics': {
             'sentence_length_avg': sum(p['length'] for p in sentence_patterns) / len(sentence_patterns) if sentence_patterns else 12,
@@ -195,22 +173,17 @@ try:
         }
     }
     
-    # Save analysis
-    with open("deep_analysis.json", "w") as f:
+    with open('deep_analysis.json', 'w') as f:
         json.dump(analysis_data, f, indent=2)
     
-    print("✅ DEEP ANALYSIS COMPLETE!")
-    print(f"   - Natural phrases collected: {len(natural_phrases)}")
-    print(f"   - Key phrases identified: {len(key_phrases)}")
-    print(f"   - Internal links found: {len(all_links)}")
-    print(f"   - Content themes: {analysis_data['site_structure']['content_themes']}")
+    print('✅ DEEP ANALYSIS COMPLETE!')
+    print(f'   - Natural phrases: {len(natural_phrases)}')
+    print(f'   - Key phrases: {len(key_phrases)}')
+    print(f'   - Internal links: {len(all_links)}')
     
 except Exception as e:
-    print(f"❌ Deep analysis failed: {e}")
-    import traceback
-    print(f"Detailed error: {traceback.format_exc()}")
+    print(f'❌ Deep analysis failed: {e}')
     
-    # Create intelligent fallback based on domain
     fallback_data = {
         'brand_voice_characteristics': {
             'sentence_length_avg': 14,
@@ -219,11 +192,11 @@ except Exception as e:
         },
         'content_patterns': {
             'natural_phrases': [
-                "Get professional help with your HESI exam preparation",
-                "Our expert team provides comprehensive nursing exam support",
-                "Achieve better scores with our specialized test strategies",
-                "Learn effective techniques for nursing exam success",
-                "Find the right support for your healthcare career goals"
+                'Get professional help with your HESI exam preparation',
+                'Our expert team provides comprehensive nursing exam support',
+                'Achieve better scores with our specialized test strategies',
+                'Learn effective techniques for nursing exam success',
+                'Find the right support for your healthcare career goals'
             ],
             'key_phrases': ['hesi', 'exam', 'nursing', 'preparation', 'scores', 'professional', 'help', 'study', 'test', 'success'],
             'common_structures': [
@@ -243,12 +216,12 @@ except Exception as e:
             'writing_style': 'professional_conversational'
         }
     }
-    with open("deep_analysis.json", "w") as f:
+    with open('deep_analysis.json', 'w') as f:
         json.dump(fallback_data, f, indent=2)
-    print("⚠️ Using intelligent fallback analysis data")
+    print('⚠️ Using intelligent fallback analysis data')
 
-print("💾 Analysis saved to deep_analysis.json")
-EOF
+print('💾 Analysis saved to deep_analysis.json')
+"
                     '''
                 }
             }
@@ -259,31 +232,30 @@ EOF
                 dir('content-generation') {
                     sh '''
                     echo "🚀 GENERATING NATURAL CONTENT..."
-                    source venv/bin/activate
-                    
-                    python3 - << 'EOF'
+                    # Direct Python execution
+                    python3 -c "
 import json
 import random
 import re
 from collections import defaultdict
 
-print("=" * 60)
-print("🚀 NATURAL CONTENT GENERATION")
-print("=" * 60)
+print('=' * 60)
+print('🚀 NATURAL CONTENT GENERATION')
+print('=' * 60)
 
 # Load analysis data
 try:
-    with open("deep_analysis.json", "r") as f:
+    with open('deep_analysis.json', 'r') as f:
         analysis = json.load(f)
-    print("✅ Loaded deep analysis data")
-except:
-    print("❌ Could not load analysis, using fallback")
+    print('✅ Loaded deep analysis data')
+except Exception as e:
+    print(f'❌ Could not load analysis: {e}')
     analysis = {
         'content_patterns': {
             'natural_phrases': [
-                "Get professional help with your exam preparation",
-                "Our team provides comprehensive support",
-                "Achieve better scores with proven strategies"
+                'Get professional help with your exam preparation',
+                'Our team provides comprehensive support',
+                'Achieve better scores with proven strategies'
             ],
             'key_phrases': ['exam', 'preparation', 'success', 'help']
         },
@@ -298,19 +270,19 @@ except:
 
 # Load content config
 try:
-    with open("content.json", "r") as f:
+    with open('content.json', 'r') as f:
         config = json.load(f)
-    keywords = config.get("keywords", [])
-    target_domain = config.get("target_domain", "hesiexamtaker.com")
-    print(f"✅ Loaded {len(keywords)} keywords")
-except:
-    print("❌ Could not load content.json, using defaults")
-    keywords = ["HESI exam", "nursing test", "medical exam preparation"]
-    target_domain = "hesiexamtaker.com"
+    keywords = config.get('keywords', [])
+    target_domain = config.get('target_domain', 'hesiexamtaker.com')
+    print(f'✅ Loaded {len(keywords)} keywords')
+except Exception as e:
+    print(f'❌ Could not load content.json: {e}')
+    keywords = ['HESI exam', 'nursing test', 'medical exam preparation', 'exam help', 'test preparation']
+    target_domain = 'hesiexamtaker.com'
 
-print(f"📊 Generation Parameters:")
-print(f"   - Keywords: {len(keywords)}")
-print(f"   - Target Domain: {target_domain}")
+print(f'📊 Generation Parameters:')
+print(f'   - Keywords: {len(keywords)}')
+print(f'   - Target Domain: {target_domain}')
 
 class NaturalContentGenerator:
     def __init__(self, analysis_data):
@@ -319,35 +291,27 @@ class NaturalContentGenerator:
         self.internal_links = analysis_data['site_structure']['internal_links']
         
     def construct_natural_sentence(self, keyword):
-        """Construct natural sounding sentence"""
-        
-        # Use natural phrases from actual website content
         if self.natural_phrases:
             base_phrase = random.choice(self.natural_phrases)
-            # Adapt the phrase to include keyword naturally
             words = base_phrase.split()
             if len(words) > 4:
-                # Replace a suitable word with keyword
                 replace_pos = random.randint(1, len(words)-2)
                 words[replace_pos] = keyword
                 adapted = ' '.join(words)
                 return adapted
             else:
-                return f"{base_phrase} for {keyword}"
+                return f'{base_phrase} for {keyword}'
         else:
-            # Fallback templates
             templates = [
-                "Professional support for {} that delivers real results.",
-                "When it comes to {}, our approach focuses on practical outcomes.",
-                "Many students find {} challenging but our methods make it manageable.",
-                "Achieve success in {} through our carefully developed approach.",
-                "We provide specialized assistance for {} that really works."
+                'Professional support for {} that delivers real results.',
+                'When it comes to {}, our approach focuses on practical outcomes.',
+                'Many students find {} challenging but our methods make it manageable.',
+                'Achieve success in {} through our carefully developed approach.',
+                'We provide specialized assistance for {} that really works.'
             ]
             return random.choice(templates).format(keyword)
     
     def generate_paragraph(self, keyword):
-        """Generate natural paragraph (35-50 words)"""
-        
         sentences = []
         target_sentences = random.randint(2, 3)
         
@@ -357,45 +321,37 @@ class NaturalContentGenerator:
         
         paragraph = ' '.join(sentences)
         
-        # Ensure proper length
         words = paragraph.split()
         if len(words) < 30:
-            # Add another sentence
             extra_sentence = self.construct_natural_sentence(keyword)
-            paragraph += " " + extra_sentence
+            paragraph += ' ' + extra_sentence
         elif len(words) > 55:
-            # Trim gracefully
             words = words[:50]
             paragraph = ' '.join(words)
         
         return paragraph.strip()
     
     def smart_link_integration(self, content, keyword):
-        """Intelligently integrate links based on context"""
-        
         if not self.internal_links:
             return content, 0
         
         link_count = 0
         enhanced_content = content
         
-        # Add first link (always)
         link1 = random.choice(self.internal_links)
         anchor1 = link1['text']
         url1 = link1['url']
         
-        # Find good position for first link
         sentences = re.split(r'[.!?]+', content)
         if len(sentences) >= 2:
             target_sentence = sentences[1].strip()
             if len(target_sentence.split()) > 3:
                 words = target_sentence.split()
                 insert_pos = random.randint(1, len(words)-1)
-                words.insert(insert_pos, f'<a href="{url1}">{anchor1}</a>')
+                words.insert(insert_pos, f'<a href=\\"{url1}\\">{anchor1}</a>')
                 sentences[1] = ' '.join(words)
                 link_count += 1
                 
-                # Possibly add second link (40% chance)
                 if len(sentences) >= 3 and random.random() < 0.4:
                     link2 = random.choice([l for l in self.internal_links if l['text'] != anchor1])
                     if link2:
@@ -403,68 +359,61 @@ class NaturalContentGenerator:
                         if len(target_sentence.split()) > 2:
                             words = target_sentence.split()
                             insert_pos = random.randint(0, len(words)-1)
-                            words.insert(insert_pos, f'<a href="{link2["url"]}">{link2["text"]}</a>')
+                            words.insert(insert_pos, f'<a href=\\"{link2[\\\"url\\\"]}\\">{link2[\\\"text\\\"]}</a>')
                             sentences[-1] = ' '.join(words)
                             link_count += 1
         
         enhanced_content = '. '.join(sentences) + '.'
         return enhanced_content, link_count
 
-# Initialize generator
 generator = NaturalContentGenerator(analysis)
 
-print("\\n🎯 GENERATING 175 NATURAL CONTENT PIECES...")
+print('\\n🎯 GENERATING 175 NATURAL CONTENT PIECES...')
 generated_data = []
 
-# Track keyword usage for variety
 keyword_usage = defaultdict(int)
-max_keyword_use = max(3, len(keywords) // 50)  # Dynamic distribution
+max_keyword_use = max(3, len(keywords) // 50)
 
 for i in range(175):
-    # Select keyword with usage limit
     available_keywords = [k for k in keywords if keyword_usage[k] < max_keyword_use]
     if not available_keywords:
-        available_keywords = keywords  # Reset if all are maxed out
+        available_keywords = keywords
     
     keyword = random.choice(available_keywords)
     keyword_usage[keyword] += 1
     
-    # Generate natural content
     natural_content = generator.generate_paragraph(keyword)
-    
-    # Smart link integration
     final_content, links_count = generator.smart_link_integration(natural_content, keyword)
     
     generated_data.append({
-        "id": i + 1,
-        "keyword": keyword,
-        "content": final_content.strip(),
-        "word_count": len(final_content.split()),
-        "links_count": links_count,
-        "style": analysis['site_structure']['writing_style']
+        'id': i + 1,
+        'keyword': keyword,
+        'content': final_content.strip(),
+        'word_count': len(final_content.split()),
+        'links_count': links_count,
+        'style': analysis['site_structure']['writing_style']
     })
     
     if (i + 1) % 25 == 0:
-        print(f"✅ Generated {i + 1}/175")
+        print(f'✅ Generated {i + 1}/175')
 
-# SAVE NATURAL CONTENT
-with open("natural_content.json", "w") as f:
+with open('natural_content.json', 'w') as f:
     json.dump(generated_data, f, indent=2)
 
-print("\\n🎉 NATURAL GENERATION COMPLETE!")
-print(f"📊 Final Statistics:")
-print(f"   - Total pieces: {len(generated_data)}")
-print(f"   - Average words: {sum(item['word_count'] for item in generated_data)/len(generated_data):.1f}")
-print(f"   - Total links: {sum(item['links_count'] for item in generated_data)}")
+print('\\n🎉 NATURAL GENERATION COMPLETE!')
+print(f'📊 Final Statistics:')
+print(f'   - Total pieces: {len(generated_data)}')
+print(f'   - Average words: {sum(item[\\\"word_count\\\"] for item in generated_data)/len(generated_data):.1f}')
+print(f'   - Total links: {sum(item[\\\"links_count\\\"] for item in generated_data)}')
 
-print("\\n📋 SAMPLE CONTENT:")
+print('\\n📋 SAMPLE CONTENT:')
 for i in range(2):
     sample = generated_data[i]
-    print(f"\\nSample {i+1}:")
-    print(f"Keyword: {sample['keyword']}")
-    print(f"Content: {sample['content']}")
-    print(f"Words: {sample['word_count']}, Links: {sample['links_count']}")
-EOF
+    print(f'\\nSample {i+1}:')
+    print(f'Keyword: {sample[\\\"keyword\\\"]}')
+    print(f'Content: {sample[\\\"content\\\"]}')
+    print(f'Words: {sample[\\\"word_count\\\"]}, Links: {sample[\\\"links_count\\\"]}')
+"
                     '''
                 }
             }
@@ -475,8 +424,6 @@ EOF
                 dir('content-generation') {
                     sh '''
                     echo "🔍 QUALITY VERIFICATION..."
-                    source venv/bin/activate
-                    
                     python3 -c "
 import json
 from collections import Counter
@@ -488,13 +435,11 @@ print('=' * 60)
 try:
     data = json.load(open('natural_content.json'))
     
-    # Comprehensive analysis
     total_pieces = len(data)
     total_words = sum(item['word_count'] for item in data)
     total_links = sum(item['links_count'] for item in data)
     avg_words = total_words / total_pieces
     
-    # Keyword distribution
     keyword_dist = Counter(item['keyword'] for item in data)
     link_dist = Counter(item['links_count'] for item in data)
     
@@ -517,8 +462,6 @@ try:
     
 except Exception as e:
     print(f'❌ Verification failed: {e}')
-    import traceback
-    print(traceback.format_exc())
 "
                     '''
                 }
