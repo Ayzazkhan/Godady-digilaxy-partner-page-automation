@@ -38,10 +38,10 @@ Topic: {keyword}
 
 RULES:
 - Must sound 100% human
-- Tone: {tone}
+- Tone: natural, SEO focused, educational
 - Insert these links exactly once each:
   {json.dumps(links)}
-- DO NOT repeat domain name: {domain}. Use related terms instead.
+- DO NOT repeat domain name: economicsassignmenthelp.co.uk. Use related terms instead.
 - Output ONLY final content. No explanation.
 """
 
