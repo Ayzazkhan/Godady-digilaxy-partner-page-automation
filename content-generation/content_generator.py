@@ -15,7 +15,7 @@ if not API_KEY:
 # --------------------------
 # Load Base Content JSON
 # --------------------------
-with open("base_content.json", "r") as f:
+with open("content.json", "r") as f:
     base_content = json.load(f)
 
 links = base_content.get("links", [])
