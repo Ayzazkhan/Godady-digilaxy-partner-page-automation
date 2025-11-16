@@ -1,6 +1,13 @@
 pipeline {
     agent any
-
+   stages {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git',
+                    credentialsId: 'github-credentials'
+            }
+        }
     stages {
         stage('Smart Website Analysis') {
             steps {
