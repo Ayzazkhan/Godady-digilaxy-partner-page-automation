@@ -48,7 +48,6 @@ RULES:
 - Style: clear, smooth, meaningful, helpful, simple sentences.
 - Match this style example:
   “Get expert <a href='https://www.economicsassignmenthelp.co.uk'>economics assignment help</a> from UK PhD <a href='https://www.economicsassignmenthelp.co.uk'>economics assignment experts</a>…”
-- Give me 20 content.
 - Output ONLY the final paragraph. No explanation.
 """
 
@@ -83,17 +82,32 @@ RULES:
 # --------------------------
 # Start Generation
 # --------------------------
+# --------------------------
+# Start Generation (20 per keyword)
+# --------------------------
 results = []
 counter = 1
 
 for keyword in keywords:
-    print(f"📝 {counter}/{len(keywords)} Generating for: {keyword}")
-    content = generate_content(keyword)
+    print(f"\n==============================")
+    print(f"🔍 Keyword: {keyword}")
+    print(f"==============================")
 
-    if content:
-        results.append({"keyword": keyword, "content": content})
-    else:
-        print(f"❌ Failed to generate for: {keyword}")
+    keyword_contents = []   # store 20 content for each keyword
+
+    for i in range(1, 11:
+        print(f"📝 Generating {i}/10 for: {keyword}")
+        content = generate_content(keyword)
+
+        if content:
+            keyword_contents.append(content)
+        else:
+            print(f"❌ Failed to generate {i} for: {keyword}")
+
+    results.append({
+        "keyword": keyword,
+        "contents": keyword_contents   # 20 output stored
+    })
 
     counter += 1
 
