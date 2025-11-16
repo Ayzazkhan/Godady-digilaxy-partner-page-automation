@@ -1,73 +1,103 @@
-def generate_single_content(keyword):
+import os
+import json
+import requests
+
+API_KEY = os.getenv("DEEPSEEK_API_KEY")
+BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
+MODEL = "tngtech/deepseek-r1t2-chimera:free"
+
+print("🚀 Starting SEO content generator (DeepSeek Free Model)...")
+
+if not API_KEY:
+    print("❌ ERROR: No API Key Found in Environment Variable: DEEPSEEK_API_KEY")
+    exit()
+
+# --------------------------
+# Load Base Content JSON
+# --------------------------
+with open("base_content.json", "r") as f:
+    base_content = json.load(f)
+
+links = base_content.get("links", [])
+tone = base_content.get("tone", "natural")
+domain = base_content.get("domain", "")
+keywords = base_content.get("keywords", [])
+
+print("🔗 Loaded links:", len(links))
+print("🎯 Keywords to process:", len(keywords))
+
+
+# --------------------------
+# Generate Content Function
+# --------------------------
+def generate_content(keyword):
     prompt = f"""
-Write a short promotional SEO paragraph (35-45 words) about {keyword} for nursing students.
-Include these links naturally: {chr(10).join(links)}
-Tone: {tone}
-Make it sound human and professional.
+You are an SEO and content writing expert.
+Write a high-quality, natural, human-sounding mini article (30–40 words).
+Topic: {keyword}
+
+RULES:
+- Must sound 100% human
+- Tone: {tone}
+- Insert these links exactly once each:
+  {json.dumps(links)}
+- DO NOT repeat domain name: {domain}. Use related terms instead.
+- Output ONLY final content. No explanation.
 """
 
+    payload = {
+        "model": MODEL,
+        "messages": [
+            {"role": "user", "content": prompt}
+        ]
+    }
+
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "HTTP-Referer": "http://localhost",
+        "X-Title": "SEO Content Generator"
+    }
+
+    response = requests.post(BASE_URL, json=payload, headers=headers)
+
+    if response.status_code != 200:
+        print("❌ API Error:", response.text)
+        return None
+
+    data = response.json()
+
+    # DEEPSEEK FREE returns result like this:
+    #   data["choices"][0]["message"]["content"]
+
     try:
-        headers = {
-            "Authorization": f"Bearer {HUGGINGFACE_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        
-        # ✅ OPTION 1: New official endpoint
-        API_URL = "https://router.huggingface.co/hf-inference/models/microsoft/DialoGPT-large"
-        
-        # ✅ OPTION 2: Alternative endpoint format
-        # API_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-large"
-        
-        payload = {
-            "inputs": prompt,
-            "parameters": {
-                "max_length": 200,
-                "temperature": 0.8,
-                "do_sample": True,
-                "return_full_text": False
-            }
-        }
-        
-        print(f"  📡 Calling Hugging Face API...")
-        response = requests.post(
-            API_URL,
-            headers=headers,
-            json=payload,
-            timeout=60
-        )
-        
-        print(f"  📊 API Response Status: {response.status_code}")
-        
-        if response.status_code == 200:
-            result = response.json()
-            if isinstance(result, list) and len(result) > 0:
-                content = result[0].get('generated_text', '').strip()
-                if content:
-                    print(f"  ✅ Generated content length: {len(content)}")
-                    return content
-            else:
-                print(f"⚠️ Unexpected API response format: {result}")
-        else:
-            print(f"❌ API Error {response.status_code}: {response.text}")
-            
-            # ✅ Agar new endpoint fail ho to old endpoint try karo
-            if "no longer supported" in response.text:
-                print("  🔄 Trying alternative endpoint...")
-                API_URL_ALT = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-large"
-                response_alt = requests.post(API_URL_ALT, headers=headers, json=payload, timeout=60)
-                
-                if response_alt.status_code == 200:
-                    result_alt = response_alt.json()
-                    if isinstance(result_alt, list) and len(result_alt) > 0:
-                        content = result_alt[0].get('generated_text', '').strip()
-                        if content:
-                            print(f"  ✅ Generated via alternative endpoint: {len(content)}")
-                            return content
-            
-    except Exception as e:
-        print(f"❌ API Call Failed for {keyword}: {e}")
-    
-    # Fallback content if all API calls fail
-    fallback_content = f"Get expert {keyword} assistance with comprehensive nursing exam preparation and professional guidance. {links[0] if len(links) > 0 else ''} {links[1] if len(links) > 1 else ''}"
-    print(f"  🔄 Using fallback content")
-    return fallback_content
+        return data["choices"][0]["message"]["content"].strip()
+    except:
+        print("❌ Unexpected API Response:", data)
+        return None
+
+
+# --------------------------
+# Start Generation
+# --------------------------
+results = []
+counter = 1
+
+for keyword in keywords:
+    print(f"📝 {counter}/{len(keywords)} Generating for: {keyword}")
+    content = generate_content(keyword)
+
+    if content:
+        results.append({"keyword": keyword, "content": content})
+    else:
+        print(f"❌ Failed to generate for: {keyword}")
+
+    counter += 1
+
+
+# --------------------------
+# Save Output JSON
+# --------------------------
+with open("output_content.json", "w") as f:
+    json.dump(results, f, indent=2)
+
+print("✅ Finished! Saved output_content.json")
