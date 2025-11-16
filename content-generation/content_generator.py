@@ -32,23 +32,22 @@ print("🎯 Keywords to process:", len(keywords))
 # --------------------------
 def generate_content(keyword):
     prompt = f"""
-You are an SEO expert and professional human content writer.
+You are an SEO expert and human-like content writer.
 
 Write a short, natural, human-sounding promotional paragraph (35–45 words).
 Topic: {keyword}
 
 RULES:
-- Use simple English only. No difficult or complex vocabulary.
+- Use simple English only.
 - Tone: friendly, educational, helpful, SEO-focused.
-- Must sound like a real human writer, not AI.
-- The model will decide the best natural keyword/phrase for each link.
-- Use hyperlinks naturally—place them on meaningful phrases, NOT the exact keyword.
-- Do NOT show the domain name: {domain}. It should ONLY appear inside the hyperlink tag.
-- Anchor text must be rewritten naturally (not exact-match keywords).
-- Style: clear, smooth, meaningful, helpful, simple sentences.
-- Match this style example:
+- Must sound 100% human, not AI.
+- Insert hyperlinks naturally on meaningful rewritten phrases.
+- Domain name ({domain}) must ONLY appear inside <a href=""> tag.
+- Do NOT use exact match keywords for anchor text.
+- Style must be smooth, clear, helpful, natural.
+- Follow this writing style:
   “Get expert <a href='https://www.economicsassignmenthelp.co.uk'>economics assignment help</a> from UK PhD <a href='https://www.economicsassignmenthelp.co.uk'>economics assignment experts</a>…”
-- Output ONLY the final paragraph. No explanation.
+- Output ONLY the paragraph. No explanation.
 """
 
     payload = {
@@ -80,20 +79,16 @@ RULES:
 
 
 # --------------------------
-# Start Generation
-# --------------------------
-# --------------------------
-# Start Generation (20 per keyword)
+# Generate 10 content per keyword
 # --------------------------
 results = []
-counter = 1
 
 for keyword in keywords:
-    print(f"\n==============================")
+    print("\n==============================")
     print(f"🔍 Keyword: {keyword}")
-    print(f"==============================")
+    print("==============================")
 
-    keyword_contents = []   # store 20 content for each keyword
+    keyword_contents = []
 
     for i in range(1, 11):
         print(f"📝 Generating {i}/10 for: {keyword}")
@@ -106,10 +101,8 @@ for keyword in keywords:
 
     results.append({
         "keyword": keyword,
-        "contents": keyword_contents   # 20 output stored
+        "contents": keyword_contents
     })
-
-    counter += 1
 
 
 # --------------------------
