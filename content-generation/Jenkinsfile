@@ -33,7 +33,7 @@ pipeline {
                 dir('content-generation') {
                     sh '''
                         . venv/bin/activate
-                        python3 content-generation/content_generator.py || echo "❌ Script failed, but pipeline continues..."
+                        python3 content_generator.py || echo "❌ Script failed, but pipeline continues..."
                     '''
                 }
             }
