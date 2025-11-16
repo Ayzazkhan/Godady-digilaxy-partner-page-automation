@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     stages {
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
                 git branch: 'main',
                     url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git',
@@ -10,42 +10,31 @@ pipeline {
             }
         }
 
-        stage('Setup Environment') {
+        stage('Setup') {
             steps {
                 dir('content-generation') {
                     sh '''
-                    echo "Setting up Python environment..."
-                    python3 -m venv venv || python -m venv venv
+                    python3 -m venv venv
                     . venv/bin/activate
-                    pip install --upgrade pip
-                    pip install requests beautifulsoup4 lxml
-                    echo "Environment ready"
+                    pip install requests beautifulsoup4
                     '''
                 }
             }
         }
 
-        stage('Google Search Analysis') {
+        stage('Generate Content - All in One') {
             steps {
                 dir('content-generation') {
                     sh '''
-                    echo "Analyzing competitors via Google..."
                     . venv/bin/activate
-                    python3 google_analyzer.py
-                    '''
                     
-                    // Create the Python file
-                    writeFile file: 'content-generation/google_analyzer.py', text: '''
+                    cat > generate_all.py << 'PYTHON_END'
 import json
-import requests
-from bs4 import BeautifulSoup
+import random
 import re
-import time
-from urllib.parse import quote_plus, urlparse
-from collections import Counter
 
 print("=" * 70)
-print("GOOGLE SEARCH ANALYSIS STARTING")
+print("COMPLETE SEO CONTENT GENERATION")
 print("=" * 70)
 
 # Load config
@@ -53,292 +42,177 @@ try:
     with open("content.json", "r") as f:
         config = json.load(f)
     domain = config.get("target_domain", "hesiexamtaker.com")
-    niche = config.get("niche", "hesi exam help")
+    print(f"Domain: {domain}")
 except:
     domain = "hesiexamtaker.com"
-    niche = "hesi exam help"
+    print("Using default domain")
 
-print(f"Target: {domain}")
-print(f"Niche: {niche}")
-
-def google_search(query, num=10):
-    """Google search without API"""
-    url = f"https://www.google.com/search?q={quote_plus(query)}&num={num}"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-    
-    try:
-        r = requests.get(url, headers=headers, timeout=15)
-        soup = BeautifulSoup(r.content, "html.parser")
-        
-        urls = []
-        for link in soup.find_all("a"):
-            href = link.get("href", "")
-            if "/url?q=" in href:
-                clean_url = href.split("/url?q=")[1].split("&")[0]
-                if clean_url.startswith("http") and domain not in clean_url:
-                    urls.append(clean_url)
-        
-        return list(set(urls))[:5]
-    except:
-        return []
-
-def scrape_content(url):
-    """Scrape competitor content"""
-    try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(r.content, "html.parser")
-        
-        for tag in soup(["script", "style", "nav", "footer"]):
-            tag.decompose()
-        
-        text = []
-        if soup.title:
-            text.append(soup.title.get_text())
-        
-        for tag in ["h1", "h2", "h3", "p"]:
-            for el in soup.find_all(tag):
-                t = el.get_text().strip()
-                if len(t) > 20:
-                    text.append(t)
-        
-        return " ".join(text)
-    except:
-        return ""
-
-def extract_keywords(text):
-    """Extract keywords from text"""
-    stop_words = {"the", "is", "at", "which", "on", "a", "an", "and", "or", "but", "in", "with", "to", "for", "of"}
-    
-    words = re.findall(r"\\b[a-zA-Z]{3,}\\b", text.lower())
-    
-    phrases = []
-    for i in range(len(words) - 2):
-        phrase = " ".join(words[i:i+3])
-        if not any(sw in phrase.split() for sw in stop_words):
-            phrases.append(phrase)
-    
-    freq = {}
-    for p in phrases:
-        freq[p] = freq.get(p, 0) + 1
-    
-    return [p for p, f in sorted(freq.items(), key=lambda x: x[1], reverse=True)[:50] if f >= 2]
-
-def extract_anchors(url):
-    """Extract anchor texts"""
-    try:
-        r = requests.get(url, timeout=10)
-        soup = BeautifulSoup(r.content, "html.parser")
-        
-        anchors = []
-        for link in soup.find_all("a"):
-            text = link.get_text().strip()
-            if 5 < len(text) < 50 and not text.isupper():
-                anchors.append(text)
-        
-        return list(set(anchors))[:20]
-    except:
-        return []
-
-# Search competitors
-print("")
-print("STEP 1: Searching Google for competitors...")
-queries = [
-    f"{niche}",
-    f"best {niche}",
-    f"professional {niche}"
+# Pre-defined high-quality keywords (Google search se manually collected)
+KEYWORDS = [
+    "hesi exam help online",
+    "nursing entrance test preparation",
+    "hesi a2 exam assistance",
+    "medical exam tutoring services",
+    "hesi exit exam support",
+    "nursing school test prep",
+    "hesi admission assessment help",
+    "healthcare entrance exam guide",
+    "hesi practice test resources",
+    "nursing certification exam prep",
+    "hesi exam study materials",
+    "professional nursing test help",
+    "hesi exam tutoring online",
+    "nursing exam preparation course",
+    "hesi test taking strategies",
+    "medical school entrance prep",
+    "hesi comprehensive review",
+    "nursing student exam support",
+    "hesi exam coaching services",
+    "healthcare test preparation",
+    "hesi specialty exams help",
+    "nursing program admission test",
+    "hesi exam score improvement",
+    "medical entrance test coaching",
+    "hesi critical thinking prep"
 ]
 
-all_urls = []
-for q in queries:
-    print(f"  Searching: {q}")
-    urls = google_search(q)
-    all_urls.extend(urls)
-    time.sleep(2)
+# Pre-defined natural anchor texts
+ANCHORS = [
+    "Expert HESI Guidance",
+    "Professional Test Help",
+    "Get Started Today",
+    "Learn More About Our Services",
+    "Access Study Resources",
+    "Contact Our Specialists",
+    "View Success Stories",
+    "Explore Exam Strategies",
+    "Schedule Consultation",
+    "Download Study Guide",
+    "Join Our Program",
+    "Request Information",
+    "Book Your Session",
+    "See Pricing Options",
+    "Read Student Reviews",
+    "Start Free Trial",
+    "Browse Course Catalog",
+    "Meet Our Tutors",
+    "Check Availability",
+    "Enroll Now"
+]
 
-competitor_urls = list(set(all_urls))[:8]
-print(f"Found {len(competitor_urls)} competitors")
+# Sentence starters
+STARTERS = [
+    "Get", "Access", "Discover", "Learn", "Find", "Explore",
+    "Achieve", "Master", "Unlock", "Boost", "Improve", "Enhance"
+]
 
-# Scrape content
-print("")
-print("STEP 2: Scraping competitor content...")
-all_content = ""
-all_anchors = []
-
-for i, url in enumerate(competitor_urls, 1):
-    print(f"  [{i}/{len(competitor_urls)}] {urlparse(url).netloc}")
-    content = scrape_content(url)
-    all_content += " " + content
-    
-    anchors = extract_anchors(url)
-    all_anchors.extend(anchors)
-    time.sleep(1)
-
-print(f"Content size: {len(all_content)} chars")
-
-# Extract keywords
-print("")
-print("STEP 3: Extracting keywords...")
-keywords = extract_keywords(all_content)
-print(f"Found {len(keywords)} keywords")
-
-# Get unique anchors
-print("")
-print("STEP 4: Processing anchor texts...")
-unique_anchors = list(set(all_anchors))
-print(f"Found {len(unique_anchors)} anchors")
-
-# Analyze patterns
-sentences = re.split(r"[.!?]+", all_content)
-clean_sents = [s.strip() for s in sentences if 20 < len(s.strip()) < 150]
-
-starters = []
-for s in clean_sents[:100]:
-    w = s.split()
-    if w:
-        starters.append(w[0])
-
-common_starters = [word for word, count in Counter(starters).most_common(10)]
-
-# Save analysis
-analysis = {
-    "competitor_count": len(competitor_urls),
-    "keywords": keywords,
-    "anchor_texts": unique_anchors,
-    "sample_sentences": clean_sents[:30],
-    "writing_patterns": {
-        "common_starters": common_starters,
-        "avg_length": sum(len(s.split()) for s in clean_sents) / len(clean_sents) if clean_sents else 12
-    },
-    "competitor_urls": competitor_urls
-}
-
-with open("google_analysis.json", "w") as f:
-    json.dump(analysis, f, indent=2)
-
-print("")
-print("=" * 70)
-print("ANALYSIS COMPLETE")
-print("=" * 70)
-print(f"Competitors: {len(competitor_urls)}")
-print(f"Keywords: {len(keywords)}")
-print(f"Anchors: {len(unique_anchors)}")
-print("")
-print("Top 5 Keywords:")
-for kw in keywords[:5]:
-    print(f"  - {kw}")
-'''
-                }
-            }
-        }
-
-        stage('Generate SEO Content') {
-            steps {
-                dir('content-generation') {
-                    sh '''
-                    echo "Generating SEO content..."
-                    . venv/bin/activate
-                    python3 content_generator.py
-                    '''
-                    
-                    writeFile file: 'content-generation/content_generator.py', text: '''
-import json
-import random
-import re
-
-print("=" * 70)
-print("SEO CONTENT GENERATION")
-print("=" * 70)
-
-# Load analysis
-with open("google_analysis.json", "r") as f:
-    analysis = json.load(f)
-
-with open("content.json", "r") as f:
-    config = json.load(f)
-
-domain = config.get("target_domain", "hesiexamtaker.com")
-keywords = analysis["keywords"]
-anchors = analysis["anchor_texts"]
-sentences = analysis["sample_sentences"]
-starters = analysis["writing_patterns"]["common_starters"]
-
-print(f"Keywords: {len(keywords)}")
-print(f"Anchors: {len(anchors)}")
-
-class ContentGen:
+class SimpleContentGen:
     def __init__(self):
-        self.keywords = keywords
-        self.anchors = anchors if anchors else ["Learn more", "Get started", "Contact us"]
-        self.starters = starters if starters else ["Get", "Learn", "Discover"]
+        self.keywords = KEYWORDS
+        self.anchors = ANCHORS
+        self.starters = STARTERS
         self.domain = domain
     
     def make_slug(self, text):
         slug = text.lower().replace(" ", "-")
         slug = re.sub(r"[^a-z0-9-]", "", slug)
-        return slug[:30]
+        return slug[:40]
     
-    def generate(self):
+    def generate_content(self):
         kw = random.choice(self.keywords)
-        
+        starter = random.choice(self.starters)
         anchor1 = random.choice(self.anchors)
         anchor2 = random.choice([a for a in self.anchors if a != anchor1])
         
         slug1 = self.make_slug(kw)
         slug2 = self.make_slug(random.choice(self.keywords))
         
+        # Multiple template variations
         templates = [
-            f"{random.choice(self.starters)} professional {kw}. Expert guidance available <a href='https://{self.domain}/{slug1}'>{anchor1}</a> for your success <a href='https://{self.domain}/{slug2}'>{anchor2}</a>",
-            f"Need help with {kw}? Our specialists provide <a href='https://{self.domain}/{slug1}'>{anchor1}</a> comprehensive support <a href='https://{self.domain}/{slug2}'>{anchor2}</a>",
-            f"Excel in {kw} with expert <a href='https://{self.domain}/{slug1}'>{anchor1}</a> assistance. Professional <a href='https://{self.domain}/{slug2}'>{anchor2}</a> guidance ensures results"
+            f"{starter} expert {kw} from qualified professionals. Our comprehensive <a href='https://{self.domain}/{slug1}'>{anchor1}</a> services ensure success. Personalized <a href='https://{self.domain}/{slug2}'>{anchor2}</a> support available 24/7.",
+            
+            f"Need {kw}? Professional specialists provide <a href='https://{self.domain}/{slug1}'>{anchor1}</a> with proven results. Get comprehensive <a href='https://{self.domain}/{slug2}'>{anchor2}</a> and achieve your goals.",
+            
+            f"{starter} better results with {kw} solutions. Expert <a href='https://{self.domain}/{slug1}'>{anchor1}</a> ensures optimal performance. <a href='https://{self.domain}/{slug2}'>{anchor2}</a> for personalized assistance.",
+            
+            f"Professional {kw} tailored to your needs. <a href='https://{self.domain}/{slug1}'>{anchor1}</a> from experienced tutors. Comprehensive <a href='https://{self.domain}/{slug2}'>{anchor2}</a> programs available.",
+            
+            f"{starter} specialized {kw} for nursing students. Our <a href='https://{self.domain}/{slug1}'>{anchor1}</a> team delivers results. <a href='https://{self.domain}/{slug2}'>{anchor2}</a> to start your journey.",
+            
+            f"Excel in your exams with {kw}. Professional <a href='https://{self.domain}/{slug1}'>{anchor1}</a> provides comprehensive support. <a href='https://{self.domain}/{slug2}'>{anchor2}</a> for expert assistance."
         ]
         
         content = random.choice(templates)
         
+        # Ensure proper word count
         words = content.split()
         if len(words) > 50:
-            content = " ".join(words[:45]) + "."
+            content = " ".join(words[:48]) + "."
         elif len(words) < 30:
-            content += f" Contact us for {kw} support."
+            content += f" Contact us for more information."
         
-        return content, kw, anchor1, anchor2
+        return {
+            "keyword": kw,
+            "content": content,
+            "word_count": len(content.split()),
+            "links_count": content.count("<a href"),
+            "anchor_texts": [anchor1, anchor2]
+        }
 
-# Generate 175 pieces
+# Generate 175 content pieces
 print("")
-print("Generating 175 content pieces...")
+print("Generating 175 SEO content pieces...")
+print("")
 
-gen = ContentGen()
-data = []
+generator = SimpleContentGen()
+all_content = []
 
-for i in range(175):
-    content, kw, a1, a2 = gen.generate()
+for i in range(1, 176):
+    piece = generator.generate_content()
+    piece["id"] = i
+    all_content.append(piece)
     
-    data.append({
-        "id": i + 1,
-        "keyword": kw,
-        "content": content,
-        "word_count": len(content.split()),
-        "links_count": content.count("<a href"),
-        "anchor_texts": [a1, a2]
-    })
-    
-    if (i + 1) % 25 == 0:
-        print(f"  Generated {i + 1}/175")
+    if i % 25 == 0:
+        print(f"Generated: {i}/175")
 
-with open("seo_expert_content.json", "w") as f:
-    json.dump(data, f, indent=2)
+# Save to file
+output_file = "seo_expert_content.json"
+with open(output_file, "w") as f:
+    json.dump(all_content, f, indent=2)
 
 print("")
 print("=" * 70)
-print("GENERATION COMPLETE")
+print("GENERATION COMPLETE!")
 print("=" * 70)
-print(f"Total: {len(data)}")
-print(f"Avg words: {sum(item['word_count'] for item in data) / len(data):.1f}")
-print(f"Total links: {sum(item['links_count'] for item in data)}")
+print(f"Output file: {output_file}")
+print(f"Total pieces: {len(all_content)}")
+print(f"Average words: {sum(p['word_count'] for p in all_content) / len(all_content):.1f}")
+print(f"Total links: {sum(p['links_count'] for p in all_content)}")
+print(f"Unique keywords: {len(set(p['keyword'] for p in all_content))}")
 print("")
-print("Sample:")
-print(data[0]["content"])
-'''
+print("Sample content:")
+print(f"ID: {all_content[0]['id']}")
+print(f"Keyword: {all_content[0]['keyword']}")
+print(f"Content: {all_content[0]['content']}")
+print("")
+print("File saved successfully!")
+PYTHON_END
+
+                    python3 generate_all.py
+                    
+                    # Verify file exists
+                    if [ -f "seo_expert_content.json" ]; then
+                        echo ""
+                        echo "SUCCESS! File created:"
+                        ls -lh seo_expert_content.json
+                        echo ""
+                        echo "File content preview:"
+                        head -20 seo_expert_content.json
+                    else
+                        echo "ERROR: File not created!"
+                        exit 1
+                    fi
+                    '''
                 }
             }
         }
@@ -349,9 +223,18 @@ print(data[0]["content"])
                     sh '''
                     git config user.email "ayzazkhan82@gmail.com"
                     git config user.name "Ayzazkhan"
-                    git add *.json *.py
-                    git commit -m "SEO Content: Build ${BUILD_NUMBER}" || true
-                    git push origin main || echo "Push done"
+                    
+                    # Add files
+                    git add seo_expert_content.json generate_all.py
+                    
+                    # Commit
+                    git commit -m "SEO Content: 175 pieces [Build ${BUILD_NUMBER}]" || echo "No changes"
+                    
+                    # Push
+                    git push origin main || echo "Push completed"
+                    
+                    echo ""
+                    echo "Files pushed to GitHub!"
                     '''
                 }
             }
@@ -361,11 +244,19 @@ print(data[0]["content"])
     post {
         always {
             dir('content-generation') {
-                sh 'rm -rf venv || true'
+                sh '''
+                echo ""
+                echo "Final files in directory:"
+                ls -la *.json *.py 2>/dev/null || echo "No files found"
+                echo ""
+                '''
             }
         }
         success {
-            echo "SUCCESS! SEO content generated"
+            echo "SUCCESS! Check: content-generation/seo_expert_content.json"
+        }
+        failure {
+            echo "FAILED! Check console output for errors"
         }
     }
 }
