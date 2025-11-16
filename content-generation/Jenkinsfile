@@ -274,10 +274,8 @@ print("")
 print("🔑 STEP 3: Extracting SEO keywords...")
 seo_keywords = extract_seo_keywords(all_competitor_content)
 if not seo_keywords:
-    seo_keywords = [
-        "hesi exam help", "nursing test prep", "medical exam support",
-        "hesi a2 preparation", "nursing entrance exam", "healthcare test assistance"
-    ]
+  seo_keywords = ["economics assignment help","economics assignment writing service","economics assignment helper","economics research paper help","economics paper writer","buy economics assignment","pay someone to write economics assignment","order economics assignment","economics assignment help UK","economics project help"]
+
 print(f"✅ Extracted {len(seo_keywords)} SEO keywords")
 
 print("")
