@@ -1,128 +1,76 @@
-import os
-import json
 import requests
-import concurrent.futures
-import time
 
-API_KEY = os.getenv("DEEPSEEK_API_KEY")
+# Your API Configuration
+API_KEY = "your-openrouter-api-key"
 BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
 
+# Model Rotation System
 FREE_MODELS = [
-    "deepseek/deepseek-r1:free",
-    "deepseek/deepseek-v3:free",
-    "deepseek/deepseek-r1-distill-qwen-32b:free",
     "google/gemini-2.0-flash-exp:free",
-    "google/gemini-2.0-flash-lite:free",
-    "openai/gpt-oss-20b:free",
+    "deepseek/deepseek-r1:free", 
+    "deepseek/deepseek-v3:free",
     "openai/gpt-4o-mini:free",
-    "meta-llama/llama-3.1-8b-instruct:free",
-    "qwen/qwen2.5-7b-instruct:free",
-    "qwen/qwen2.5-14b-instruct:free",
-    "meituan/longcat-flash:free",
-    "01-ai/yi-large:free",
-    "mistralai/mistral-nemo:free",
-    "cognitivecomputations/dolphin-mixtral-8x7b:free"
+    "anthropic/claude-3-haiku:free",
+    "openrouter/auto"
 ]
 
-# Auto model scoring storage
-model_scores = {m: 0 for m in FREE_MODELS}
-
-# Load base content
-with open("content.json", "r") as f:
-    base_content = json.load(f)
-
-keywords = base_content.get("keywords", [])
-domain = base_content.get("domain", "")
-
-def send_request(model, prompt):
-    try:
-        response = requests.post(
-            BASE_URL,
-            json={
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}]
-            },
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "HTTP-Referer": "http://localhost",
-                "X-Title": "SEO Generator"
-            },
-            timeout=20
-        )
-        if response.status_code == 200:
-            return response.json()["choices"][0]["message"]["content"], model
-        return None, model
-    except:
-        return None, model
-
-
-def generate_with_fallback(prompt):
-    # sort by score → best-attempted model first
-    sorted_models = sorted(model_scores.keys(), key=lambda m: model_scores[m], reverse=True)
-
-    for model in sorted_models:
-        content, used_model = send_request(model, prompt)
-
-        if content:
-            model_scores[used_model] += 1   # reward model
-            return content
-
-        # penalty if failed
-        model_scores[used_model] -= 1
-
-    return None
-
-
+# ✅ MUST BE ABOVE generate_content()
 def build_prompt(keyword):
-    return f"""
-Write a human-sounding, simple-English promotional paragraph (35–45 words).
+    return f"""Create a comprehensive, SEO-optimized article about {keyword}. 
+    The article should be well-structured with headings, subheadings, and engaging content.
+    Write in a natural, conversational tone and provide valuable information."""
 
-Topic: {keyword}
-Target domain: {domain}
+# ✅ FIXED generate_content() with Auto-Fallback
+def generate_content(keyword):
+    prompt = build_prompt(keyword)
 
-RULES:
-- Paragraph MUST start with one of these words: Best, Get, Need, Our.
-- Use simple English only. No hard or complex vocabulary.
-- Tone must be friendly, soft, educational, persuasive, and marketing-focused.
-- Add EXACTLY two (2) anchor tags.
-- Both anchor tags MUST redirect to the domain: {domain}
-- Anchor text must be rewritten naturally (not the exact keyword).
-- Hyperlinks must be placed on meaningful helpful phrases.
-- Domain name must appear ONLY inside the <a href=""> tag.
-- Paragraph must sound 100% human.
-- Do NOT repeat exact-match keywords.
-- Output only the final paragraph. No explanation.
-"""
+    for model in FREE_MODELS:
+        print(f"⚡ Trying model: {model}")
 
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "user", "content": prompt}
+            ]
+        }
 
+        headers = {
+            "Authorization": f"Bearer {API_KEY}",
+            "HTTP-Referer": "http://localhost",
+            "X-Title": "SEO Content Generator"
+        }
 
-def process_keyword(keyword):
-    outputs = []
+        try:
+            response = requests.post(BASE_URL, json=payload, headers=headers, timeout=40)
+        except Exception as e:
+            print(f"❌ Network/Timeout Error on {model}: {e}")
+            continue
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        futures = []
+        if response.status_code != 200:
+            print(f"❌ Model {model} Error:", response.text[:200])  # First 200 chars only
 
-        for _ in range(10):  # generate 10 per keyword
-            prompt = build_prompt(keyword)
-            futures.append(executor.submit(generate_with_fallback, prompt))
+            # QUOTA HIT → try next model
+            if "insufficient_quota" in response.text.lower():
+                print("➡ Switching model due to quota...")
+                continue
 
-        for future in futures:
-            result = future.result()
-            outputs.append(result if result else "GENERATION FAILED")
+            # Other API errors → try next model
+            continue
 
-    return {"keyword": keyword, "contents": outputs}
+        data = response.json()
 
+        try:
+            content = data["choices"][0]["message"]["content"].strip()
+            print(f"✅ Model {model} succeeded!")
+            return content
+        except (KeyError, IndexError, TypeError):
+            print(f"⚠ Invalid response structure from {model}, trying next...")
+            continue
 
-# Run the whole pipeline
-final_results = []
+    return "GENERATION FAILED"  # This will only show if ALL models fail
 
-for keyword in keywords:
-    print(f"⚡ Processing keyword: {keyword}")
-    data = process_keyword(keyword)
-    final_results.append(data)
-
-# Save file
-with open("output_content.json", "w") as f:
-    json.dump(final_results, f, indent=2)
-
-print("🎉 DONE! Parallel, auto-scoring, fail-proof system ready.")
+# Usage Example
+if __name__ == "__main__":
+    keyword = "digital marketing"
+    content = generate_content(keyword)
+    print(f"\n📝 Generated Content:\n{content}")
