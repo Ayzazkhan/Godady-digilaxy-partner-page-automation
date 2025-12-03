@@ -1,0 +1,61 @@
+pipeline {
+  agent any
+
+  stages {
+
+    stage('Checkout Repository') {
+      steps {
+        git credentialsId: 'github-access',
+            url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git',
+            branch: 'main'
+      }
+    }
+
+    stage('Process Canonical Tags for All Domains') {
+      steps {
+        script {
+
+          // STEP 1 — Read domain names from domains.json
+          def domainsOutput = sh(
+            script: """
+              python3 - << 'PY'
+import json
+data = json.load(open('canonical-update/data/domains.json'))
+print("\\n".join(data.keys()))
+PY
+            """,
+            returnStdout: true
+          ).trim()
+
+          def domains = domainsOutput.tokenize('\n')
+          echo "Domains to process: ${domains}"
+
+          // STEP 2 — Loop
+          for (d in domains) {
+            def cred = "ftp-${d}"
+            echo "---- Processing domain: ${d} ----"
+            echo "Using Jenkins credentials: ${cred}"
+
+            withCredentials([usernamePassword(credentialsId: cred, usernameVariable: 'FTP_USER', passwordVariable: 'FTP_PASS')]) {
+
+              sh """
+                cd canonical-update
+                export CURRENT_DOMAIN="${d}"
+                export FTP_USER="${FTP_USER}"
+                export FTP_PASS="${FTP_PASS}"
+                python3 scripts/canonical_injector.py
+              """
+
+            }
+          }
+
+        }
+      }
+    }
+  }
+
+  post {
+    success { echo "✅ All domains completed (Canonical inserted)" }
+    failure { echo "❌ Some domains FAILED — check logs!" }
+  }
+}
