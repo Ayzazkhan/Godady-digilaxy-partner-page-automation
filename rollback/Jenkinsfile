@@ -1,4 +1,3 @@
-
 pipeline {
   agent any
 
@@ -16,11 +15,12 @@ pipeline {
       steps {
         script {
 
+          // ✅ CORRECT PATH TO rollback/domains.json
           def domainsOutput = sh(
             script: """
               python3 - <<'PY'
 import json
-print("\\n".join(list(json.load(open('rollback-update/data/domains.json')).keys())))
+print("\\n".join(list(json.load(open('rollback/data/domains.json')).keys())))
 PY
             """,
             returnStdout: true
@@ -31,16 +31,15 @@ PY
 
           for (d in domains) {
             def credId = "ftp-${d}"
-            echo "Rolling back ${d} using credential ${credId}"
+            echo "🔄 Rolling back ${d} using credential ${credId}"
 
             withCredentials([usernamePassword(credentialsId: credId, usernameVariable: 'FTP_USER', passwordVariable: 'FTP_PASS')]) {
 
               sh """
-                cd rollback-update
                 export CURRENT_DOMAIN=${d}
                 export FTP_USER=${FTP_USER}
                 export FTP_PASS='${FTP_PASS}'
-                python3 scripts/ftp_rollback_swap.py
+                python3 rollback/scripts/ftp_rollback_swap.py
               """
 
             }
