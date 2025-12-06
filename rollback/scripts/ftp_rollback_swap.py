@@ -2,7 +2,8 @@
 import os, json
 from ftplib import FTP, error_perm
 
-DOMAINS_FILE = "data/domains.json"
+# ✅ CORRECT PATH
+DOMAINS_FILE = "rollback/data/domains.json"
 
 def swap_files(domain, host, ftp_user, ftp_pass):
     print(f"\n🔄 Rolling Back: {domain} @ {host}")
@@ -12,7 +13,7 @@ def swap_files(domain, host, ftp_user, ftp_pass):
     print("✅ FTP Login Success")
 
     try:
-        # Temporary rename to avoid conflict
+        # ✅ Safe 3-step swap
         ftp.rename("rollback.html", "rollback_tmp.html")
         print("✅ rollback.html -> rollback_tmp.html")
 
@@ -43,7 +44,7 @@ def main():
         domains_obj = json.load(f)
 
     if current not in domains_obj:
-        print(f"❌ {current} not found in domains.json")
+        print(f"❌ {current} not found in rollback/domains.json")
         return
 
     host = domains_obj[current].get("host")
