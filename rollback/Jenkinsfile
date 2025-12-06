@@ -1,1 +1,57 @@
 
+pipeline {
+  agent any
+
+  stages {
+
+    stage('Checkout') {
+      steps {
+        git credentialsId: 'github-access',
+            url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git',
+            branch: 'main'
+      }
+    }
+
+    stage('Rollback Domains') {
+      steps {
+        script {
+
+          def domainsOutput = sh(
+            script: """
+              python3 - <<'PY'
+import json
+print("\\n".join(list(json.load(open('rollback-update/data/domains.json')).keys())))
+PY
+            """,
+            returnStdout: true
+          ).trim()
+
+          def domains = domainsOutput.tokenize('\n')
+          echo "Domains to rollback: ${domains}"
+
+          for (d in domains) {
+            def credId = "ftp-${d}"
+            echo "Rolling back ${d} using credential ${credId}"
+
+            withCredentials([usernamePassword(credentialsId: credId, usernameVariable: 'FTP_USER', passwordVariable: 'FTP_PASS')]) {
+
+              sh """
+                cd rollback-update
+                export CURRENT_DOMAIN=${d}
+                export FTP_USER=${FTP_USER}
+                export FTP_PASS='${FTP_PASS}'
+                python3 scripts/ftp_rollback_swap.py
+              """
+
+            }
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    success { echo "✅ All domains rollback completed successfully" }
+    failure { echo "❌ Rollback FAILED on some domains — check console" }
+  }
+}
