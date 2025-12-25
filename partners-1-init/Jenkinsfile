@@ -1,13 +1,10 @@
 pipeline {
   agent any
-
   options {
     timestamps()
     disableConcurrentBuilds()
   }
-
   stages {
-
     /* =========================
        CHECKOUT REPOSITORY
        ========================= */
@@ -18,66 +15,71 @@ pipeline {
             credentialsId: 'github-access'
       }
     }
-
     /* =========================
        CANONICAL UPDATE (PARTNERS-1)
        ========================= */
-   stage('Canonical Update (partners-1)') {
-  steps {
-    script {
-
-      def domains = sh(
-        script: """
-        python3 - <<'PY'
+    stage('Canonical Update (partners-1)') {
+      steps {
+        script {
+          // Load domains.json with host info
+          def domainsData = sh(
+            script: """
+              python3 - <<'PY'
 import json
-print("\\n".join(json.load(open('partners-1-init/data/domains.json')).keys()))
+data = json.load(open('partners-1-init/data/domains.json'))
+for domain, info in data.items():
+    print(f"{domain}|{info['host']}")
 PY
-        """,
-        returnStdout: true
-      ).trim().split("\\n")
-
-      def success = []
-      def failed  = []
-
-      for (domain in domains) {
-
-        def credentialId = "partners-${domain}"
-        def ftpUsername  = "partners@${domain}"   // ✅ IMPORTANT FIX
-
-        echo "🔐 Using credential: ${credentialId}"
-        echo "👤 FTP Username: ${ftpUsername}"
-
-        try {
-          withCredentials([
-            usernamePassword(
-              credentialsId: credentialId,
-              usernameVariable: 'FTP_PASS_USERNAME',
-              passwordVariable: 'FTP_PASS'
-            )
-          ]) {
-            sh """
-              export CURRENT_DOMAIN=${domain}
-              export FTP_USER=${ftpUsername}
-              export FTP_PASS=\$FTP_PASS
-              python3 partners-1-init/scripts/ftp_canonical_update.py
-            """
+            """,
+            returnStdout: true
+          ).trim().split("\\n")
+          
+          def success = []
+          def failed  = []
+          
+          for (line in domainsData) {
+            def parts = line.split("\\|")
+            def domain = parts[0]
+            def host = parts[1]
+            def credentialId = "partners-${domain}"
+            def ftpUsername  = "partners@${domain}"
+            
+            echo "🔐 Credential: ${credentialId}"
+            echo "👤 FTP User: ${ftpUsername}"
+            echo "🌐 FTP Host: ${host}"
+            
+            try {
+              withCredentials([
+                usernamePassword(
+                  credentialsId: credentialId,
+                  usernameVariable: 'FTP_PASS_USERNAME',
+                  passwordVariable: 'FTP_PASS'
+                )
+              ]) {
+                sh """
+                  export CURRENT_DOMAIN='${domain}'
+                  export FTP_HOST='${host}'
+                  export FTP_USER='${ftpUsername}'
+                  export FTP_PASS=\$FTP_PASS
+                  python3 partners-1-init/scripts/ftp_canonical_update.py
+                """
+              }
+              success.add(domain)
+              echo "✅ SUCCESS: ${domain}"
+            } catch (err) {
+              echo "❌ FAILED: ${domain} | ${err.getMessage()}"
+              failed.add(domain)
+            }
           }
-
-          success.add(domain)
-
-        } catch (err) {
-          echo "❌ FAILED: ${domain} | ${err.getMessage()}"
-          failed.add(domain)
+          
+          echo "\n========== FINAL SUMMARY =========="
+          echo "✅ SUCCESS (${success.size()})"
+          success.each { echo "  ✔ ${it}" }
+          echo "\n❌ FAILED (${failed.size()})"
+          failed.each { echo "  ✖ ${it}" }
+          echo "==================================="
         }
       }
-
-      echo "========== FINAL SUMMARY =========="
-      echo "✅ SUCCESS (${success.size()})"
-      success.each { echo "  ✔ ${it}" }
-
-      echo "❌ FAILED (${failed.size()})"
-      failed.each { echo "  ✖ ${it}" }
-      echo "================================="
     }
   }
 }
