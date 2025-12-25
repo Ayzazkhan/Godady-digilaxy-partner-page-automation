@@ -1,39 +1,94 @@
-stage('Canonical Update (partners-1)') {
-  steps {
-    script {
-      def domains = sh(
-        script: """
-        python3 - <<'PY'
+pipeline {
+  agent any
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+  }
+
+  stages {
+
+    /* =========================
+       CHECKOUT REPOSITORY
+       ========================= */
+    stage('Checkout') {
+      steps {
+        git branch: 'main',
+            url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git',
+            credentialsId: 'github-access'
+      }
+    }
+
+    /* =========================
+       CANONICAL UPDATE (PARTNERS-1)
+       ========================= */
+    stage('Canonical Update (partners-1)') {
+      steps {
+        script {
+
+          // Read domains from JSON
+          def domains = sh(
+            script: """
+            python3 - <<'PY'
 import json
-print('\\n'.join(json.load(open('partners-1-init/data/domains.json')).keys()))
+print("\\n".join(json.load(open('partners-1-init/data/domains.json')).keys()))
 PY
-        """,
-        returnStdout: true
-      ).trim().split("\\n")
+            """,
+            returnStdout: true
+          ).trim().split("\\n")
 
-      for (d in domains) {
-        def credId = "partners-${d}"
-        echo "🔐 Trying credential: ${credId}"
+          echo "📌 Domains to process: ${domains.size()}"
 
-        try {
-          withCredentials([
-            usernamePassword(
-              credentialsId: credId,
-              usernameVariable: 'FTP_USER',
-              passwordVariable: 'FTP_PASS'
-            )
-          ]) {
-            sh """
-              export CURRENT_DOMAIN=${d}
-              export FTP_USER=\$FTP_USER
-              export FTP_PASS=\$FTP_PASS
-              python3 partners-1-init/scripts/ftp_canonical_update.py
-            """
+          def success = []
+          def failed  = []
+
+          for (d in domains) {
+            def credId = "partners-${d}"
+            echo "🔐 Using credential: ${credId}"
+
+            try {
+              withCredentials([
+                usernamePassword(
+                  credentialsId: credId,
+                  usernameVariable: 'FTP_USER',
+                  passwordVariable: 'FTP_PASS'
+                )
+              ]) {
+                sh """
+                  export CURRENT_DOMAIN=${d}
+                  export FTP_USER=\$FTP_USER
+                  export FTP_PASS=\$FTP_PASS
+                  python3 partners-1-init/scripts/ftp_canonical_update.py
+                """
+                success.add(d)
+              }
+            } catch (err) {
+              echo "❌ FAILED: ${d} | ${err.getMessage()}"
+              failed.add(d)
+            }
           }
-        } catch (err) {
-          echo "⚠️ Skipped ${d} — FTP credential missing or login failed"
+
+          /* =========================
+             FINAL SUMMARY
+             ========================= */
+          echo "========== FINAL SUMMARY =========="
+          echo "✅ SUCCESS (${success.size()})"
+          success.each { echo "  ✔ ${it}" }
+
+          echo "❌ FAILED (${failed.size()})"
+          failed.each { echo "  ✖ ${it}" }
+          echo "=================================="
         }
       }
+    }
+  }
+
+  post {
+    success {
+      echo "🎉 Pipeline completed successfully"
+    }
+    failure {
+      echo "⚠️ Pipeline completed with errors (some domains skipped)"
     }
   }
 }
