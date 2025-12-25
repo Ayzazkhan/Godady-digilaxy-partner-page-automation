@@ -1,62 +1,96 @@
 #!/usr/bin/env python3
-import os, json, io
+import json, io, os
 from ftplib import FTP
 from bs4 import BeautifulSoup
 
 DOMAINS_FILE = "partners-1-init/data/domains.json"
-TEMPLATE_FILE = "partners-1-init/templates/index_template.html"
+TEMPLATE_FILE = "partners-1-init/templates/partners1_index_template.html"
 
-def process_domain(domain, host, ftp_user, ftp_pass):
-    print(f"\n🔹 Processing {domain}")
+SUCCESS = []
+FAILED = []
 
-    ftp = FTP(host, timeout=20)
-    ftp.login(ftp_user, ftp_pass)
-    print("✅ FTP login successful (already in partners-1)")
+def generate_base_html():
+    with open(TEMPLATE_FILE, "r", encoding="utf-8") as f:
+        return f.read()
 
-    html = ""
-
-    # 1️⃣ Try reading index.html
-    try:
-        bio = io.BytesIO()
-        ftp.retrbinary("RETR index.html", bio.write)
-        html = bio.getvalue().decode("utf-8", "ignore")
-        print("📄 index.html found")
-    except:
-        print("🆕 index.html not found, creating new one")
-        tpl = open(TEMPLATE_FILE, "r").read()
-        html = tpl.replace("{{DOMAIN}}", domain)
-
+def update_canonical(html, domain):
     soup = BeautifulSoup(html, "html.parser")
+    head = soup.find("head")
 
-    # 2️⃣ Remove existing canonical if any
-    for tag in soup.find_all("link", rel="canonical"):
-        tag.decompose()
+    if not head:
+        return html
 
-    # 3️⃣ Insert correct canonical
+    # check existing canonical
+    existing = head.find("link", rel="canonical")
+    if existing:
+        print("ℹ️ Canonical already exists — skipping")
+        return str(soup)
+
     canonical_url = f"https://www.{domain}/partners-1/"
-    new_canonical = soup.new_tag(
-        "link",
-        rel="canonical",
-        href=canonical_url
-    )
-    soup.head.append(new_canonical)
+    new_tag = soup.new_tag("link", rel="canonical", href=canonical_url)
+    head.append(new_tag)
+    print(f"✅ Canonical added: {canonical_url}")
 
-    # 4️⃣ Upload back
-    out = io.BytesIO(str(soup).encode("utf-8"))
-    ftp.storbinary("STOR index.html", out)
+    return str(soup)
 
-    print(f"✅ Canonical updated → {canonical_url}")
-    ftp.quit()
+def handle_domain(domain, host, ftp_user, ftp_pass):
+    try:
+        print(f"\n🔹 Processing {domain}")
+
+        ftp = FTP(host, timeout=20)
+        ftp.login(ftp_user, ftp_pass)
+        print("✅ FTP login success")
+
+        remote_file = "index.html"
+        bio = io.BytesIO()
+
+        try:
+            ftp.retrbinary(f"RETR {remote_file}", bio.write)
+            html = bio.getvalue().decode("utf-8", errors="ignore")
+            print("✅ index.html loaded")
+        except:
+            print("⚠️ index.html not found — creating new")
+            html = generate_base_html()
+
+        updated_html = update_canonical(html, domain)
+
+        ftp.storbinary(
+            f"STOR {remote_file}",
+            io.BytesIO(updated_html.encode("utf-8"))
+        )
+
+        ftp.quit()
+        SUCCESS.append(domain)
+        print(f"🎉 DONE: {domain}")
+
+    except Exception as e:
+        FAILED.append({"domain": domain, "error": str(e)})
+        print(f"❌ FAILED: {domain} | {e}")
 
 def main():
-    domain = os.environ.get("CURRENT_DOMAIN")
     ftp_user = os.environ.get("FTP_USER")
     ftp_pass = os.environ.get("FTP_PASS")
 
-    domains = json.load(open(DOMAINS_FILE))
-    host = domains[domain]["host"]
+    if not ftp_user or not ftp_pass:
+        print("❌ FTP credentials missing")
+        return
 
-    process_domain(domain, host, ftp_user, ftp_pass)
+    with open(DOMAINS_FILE, "r") as f:
+        domains = json.load(f)
+
+    for domain, data in domains.items():
+        handle_domain(domain, data["host"], ftp_user, ftp_pass)
+
+    print("\n========== FINAL SUMMARY ==========")
+    print(f"✅ SUCCESS ({len(SUCCESS)})")
+    for d in SUCCESS:
+        print(f"  ✔ {d}")
+
+    print(f"\n❌ FAILED ({len(FAILED)})")
+    for f in FAILED:
+        print(f"  ✖ {f['domain']} | {f['error']}")
+
+    print("=================================")
 
 if __name__ == "__main__":
     main()
