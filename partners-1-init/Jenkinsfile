@@ -44,6 +44,7 @@ PY
             def credentialId = "partners-${domain}"
             def ftpUsername  = "partners@${domain}"
             
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo "🔐 Credential: ${credentialId}"
             echo "👤 FTP User: ${ftpUsername}"
             echo "🌐 FTP Host: ${host}"
@@ -72,12 +73,14 @@ PY
             }
           }
           
-          echo "\n========== FINAL SUMMARY =========="
-          echo "✅ SUCCESS (${success.size()})"
+          echo "\n=========================================="
+          echo "========== FINAL SUMMARY ================="
+          echo "=========================================="
+          echo "✅ SUCCESS: ${success.size()} domains"
           success.each { echo "  ✔ ${it}" }
-          echo "\n❌ FAILED (${failed.size()})"
+          echo "\n❌ FAILED: ${failed.size()} domains"
           failed.each { echo "  ✖ ${it}" }
-          echo "==================================="
+          echo "=========================================="
         }
       }
     }
