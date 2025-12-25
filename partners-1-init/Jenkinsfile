@@ -10,31 +10,30 @@ pipeline {
       }
     }
 
-    stage('Canonical Update') {
+    stage('Canonical Update (partners-1)') {
       steps {
         script {
           def domains = sh(
-            script: """
-              python3 - <<'PY'
-import json
-print("\\n".join(json.load(open('partners-1-init/data/domains.json')).keys()))
-PY
-            """,
+            script: "python3 - <<'PY'\nimport json\nprint('\\n'.join(json.load(open('partners-1-init/data/domains.json')).keys()))\nPY",
             returnStdout: true
-          ).trim().split("\\n")
+          ).trim().split("\n")
+
+          echo "Domains found: ${domains}"
 
           for (d in domains) {
+            def credId = "partners-${d}"
+            echo "🔐 Using credential: ${credId}"
+
             withCredentials([
               usernamePassword(
-                credentialsId: "partners-${d}",
+                credentialsId: credId,
                 usernameVariable: 'FTP_USER',
                 passwordVariable: 'FTP_PASS'
               )
             ]) {
               sh """
-                export CURRENT_DOMAIN=${d}
-                export FTP_USER=${FTP_USER}
-                export FTP_PASS='${FTP_PASS}'
+                export FTP_USER=\$FTP_USER
+                export FTP_PASS=\$FTP_PASS
                 python3 partners-1-init/scripts/ftp_canonical_update.py
               """
             }
@@ -45,7 +44,7 @@ PY
   }
 
   post {
-    success { echo "✅ Canonical updated successfully" }
-    failure { echo "❌ Error — check logs" }
+    success { echo "✅ Canonical automation completed" }
+    failure { echo "⚠️ Pipeline finished with issues — check logs" }
   }
 }
