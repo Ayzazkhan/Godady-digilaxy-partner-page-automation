@@ -22,73 +22,62 @@ pipeline {
     /* =========================
        CANONICAL UPDATE (PARTNERS-1)
        ========================= */
-    stage('Canonical Update (partners-1)') {
-      steps {
-        script {
+   stage('Canonical Update (partners-1)') {
+  steps {
+    script {
 
-          // Read domains from JSON
-          def domains = sh(
-            script: """
-            python3 - <<'PY'
+      def domains = sh(
+        script: """
+        python3 - <<'PY'
 import json
 print("\\n".join(json.load(open('partners-1-init/data/domains.json')).keys()))
 PY
-            """,
-            returnStdout: true
-          ).trim().split("\\n")
+        """,
+        returnStdout: true
+      ).trim().split("\\n")
 
-          echo "📌 Domains to process: ${domains.size()}"
+      def success = []
+      def failed  = []
 
-          def success = []
-          def failed  = []
+      for (domain in domains) {
 
-          for (d in domains) {
-            def credId = "partners@${d}"
-            echo "🔐 Using credential: ${credId}"
+        def credentialId = "partners-${domain}"
+        def ftpUsername  = "partners@${domain}"   // ✅ IMPORTANT FIX
 
-            try {
-              withCredentials([
-                usernamePassword(
-                  credentialsId: credId,
-                  usernameVariable: 'FTP_USER',
-                  passwordVariable: 'FTP_PASS'
-                )
-              ]) {
-                sh """
-                  export CURRENT_DOMAIN=${d}
-                  export FTP_USER=\$FTP_USER
-                  export FTP_PASS=\$FTP_PASS
-                  python3 partners-1-init/scripts/ftp_canonical_update.py
-                """
-                success.add(d)
-              }
-            } catch (err) {
-              echo "❌ FAILED: ${d} | ${err.getMessage()}"
-              failed.add(d)
-            }
+        echo "🔐 Using credential: ${credentialId}"
+        echo "👤 FTP Username: ${ftpUsername}"
+
+        try {
+          withCredentials([
+            usernamePassword(
+              credentialsId: credentialId,
+              usernameVariable: 'FTP_PASS_USERNAME',
+              passwordVariable: 'FTP_PASS'
+            )
+          ]) {
+            sh """
+              export CURRENT_DOMAIN=${domain}
+              export FTP_USER=${ftpUsername}
+              export FTP_PASS=\$FTP_PASS
+              python3 partners-1-init/scripts/ftp_canonical_update.py
+            """
           }
 
-          /* =========================
-             FINAL SUMMARY
-             ========================= */
-          echo "========== FINAL SUMMARY =========="
-          echo "✅ SUCCESS (${success.size()})"
-          success.each { echo "  ✔ ${it}" }
+          success.add(domain)
 
-          echo "❌ FAILED (${failed.size()})"
-          failed.each { echo "  ✖ ${it}" }
-          echo "=================================="
+        } catch (err) {
+          echo "❌ FAILED: ${domain} | ${err.getMessage()}"
+          failed.add(domain)
         }
       }
-    }
-  }
 
-  post {
-    success {
-      echo "🎉 Pipeline completed successfully"
-    }
-    failure {
-      echo "⚠️ Pipeline completed with errors (some domains skipped)"
+      echo "========== FINAL SUMMARY =========="
+      echo "✅ SUCCESS (${success.size()})"
+      success.each { echo "  ✔ ${it}" }
+
+      echo "❌ FAILED (${failed.size()})"
+      failed.each { echo "  ✖ ${it}" }
+      echo "================================="
     }
   }
 }
