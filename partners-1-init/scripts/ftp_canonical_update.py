@@ -3,11 +3,31 @@ import io, os
 from ftplib import FTP
 from bs4 import BeautifulSoup
 
-TEMPLATE_FILE = "partners-1-init/templates/partners1_index_template.html"
-
+# ✅ Hardcoded template - no file needed
 def generate_base_html():
-    with open(TEMPLATE_FILE, "r", encoding="utf-8") as f:
-        return f.read()
+    return """<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Partners-1</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+<meta name="robots" content="index, follow"/>
+<style>
+.client-wrapper {
+  text-align: center;
+  padding: 10px;
+  border: 1px solid #f1ecec;
+  height: 400px;
+}
+</style>
+</head>
+<body>
+<section class="container pt-5">
+  <h1 class="text-center">Partners-1</h1>
+</section>
+</body>
+</html>"""
 
 def update_canonical(html, domain):
     soup = BeautifulSoup(html, "html.parser")
@@ -34,11 +54,7 @@ def main():
     ftp_pass = os.environ.get("FTP_PASS")
     
     if not domain or not host or not ftp_user or not ftp_pass:
-        print("❌ Missing environment variables:")
-        print(f"   CURRENT_DOMAIN: {domain}")
-        print(f"   FTP_HOST: {host}")
-        print(f"   FTP_USER: {ftp_user}")
-        print(f"   FTP_PASS: {'***' if ftp_pass else 'None'}")
+        print("❌ Missing environment variables")
         exit(1)
     
     try:
@@ -50,12 +66,8 @@ def main():
         ftp.login(ftp_user, ftp_pass)
         print("✅ FTP login successful")
         
-        # Navigate to partners-1 directory if needed
-        try:
-            ftp.cwd("partners-1")
-            print("✅ Changed to /partners-1 directory")
-        except:
-            print("⚠️ /partners-1 directory not found, using root")
+        # ✅ Login hote hi partners-1 mein hain, no directory change needed
+        print("✅ Already in /partners-1 directory")
         
         remote_file = "index.html"
         bio = io.BytesIO()
