@@ -1,0 +1,51 @@
+pipeline {
+  agent any
+
+  stages {
+    stage('Checkout') {
+      steps {
+        git credentialsId: 'github-access',
+            url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git',
+            branch: 'main'
+      }
+    }
+
+    stage('Canonical Update') {
+      steps {
+        script {
+          def domains = sh(
+            script: """
+              python3 - <<'PY'
+import json
+print("\\n".join(json.load(open('partners-1-init/data/domains.json')).keys()))
+PY
+            """,
+            returnStdout: true
+          ).trim().split("\\n")
+
+          for (d in domains) {
+            withCredentials([
+              usernamePassword(
+                credentialsId: "partners-${d}",
+                usernameVariable: 'FTP_USER',
+                passwordVariable: 'FTP_PASS'
+              )
+            ]) {
+              sh """
+                export CURRENT_DOMAIN=${d}
+                export FTP_USER=${FTP_USER}
+                export FTP_PASS='${FTP_PASS}'
+                python3 partners-1-init/scripts/ftp_canonical_update.py
+              """
+            }
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    success { echo "✅ Canonical updated successfully" }
+    failure { echo "❌ Error — check logs" }
+  }
+}
