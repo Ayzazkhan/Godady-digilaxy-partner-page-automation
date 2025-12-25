@@ -43,7 +43,7 @@ PY
           def failed  = []
 
           for (d in domains) {
-            def credId = "partners-${d}"
+            def credId = "partners@${d}"
             echo "🔐 Using credential: ${credId}"
 
             try {
