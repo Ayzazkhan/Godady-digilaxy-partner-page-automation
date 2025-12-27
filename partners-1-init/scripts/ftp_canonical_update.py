@@ -3,7 +3,6 @@ import io, os
 from ftplib import FTP
 from bs4 import BeautifulSoup
 
-# ✅ Hardcoded template - no file needed
 def generate_base_html():
     return """<!DOCTYPE html>
 <html lang="en-GB">
@@ -13,7 +12,6 @@ def generate_base_html():
 <title>Partners-1</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
 <meta name="robots" content="index, follow"/>
-<link rel="canonical" href="https://www.{domain}/partners-1/">
 <style>
 .client-wrapper {
   text-align: center;
@@ -21,6 +19,40 @@ def generate_base_html():
   border: 1px solid #f1ecec;
   height: 400px;
 }
+</style>
+</head>
+<body>
+<section class="container pt-5">
+  <h1 class="text-center">Partners-1</h1>
+</section>
+</body>
+</html>"""
+
+def update_html_content(html, domain):
+    """Update HTML with canonical, custom styles, and section"""
+    soup = BeautifulSoup(html, "html.parser")
+    
+    # ====================================
+    # 1. ADD CANONICAL TAG
+    # ====================================
+    head = soup.find("head")
+    if not head:
+        print("⚠️ No <head> tag found")
+        return html
+    
+    existing_canonical = head.find("link", rel="canonical")
+    if existing_canonical:
+        print(f"ℹ️ Canonical already exists: {existing_canonical.get('href')}")
+    else:
+        canonical_url = f"https://www.{domain}/partners-1/"
+        canonical_tag = soup.new_tag("link", rel="canonical", href=canonical_url)
+        head.append(canonical_tag)
+        print(f"✅ Canonical added: {canonical_url}")
+    
+    # ====================================
+    # 2. ADD CSS TO EXISTING <style> TAG
+    # ====================================
+    additional_css = """
 .cid-qKT6knwV2G .wrap-img img {
   max-width: 60%;
   width: 150px;
@@ -49,38 +81,53 @@ def generate_base_html():
 .card-box a {
   font-size: 13px;
 }
-</style>
-</head>
-<body>
-<section class="container pt-5">
-  <h1 class="text-center">Partners-1</h1>
-</section>
-<section class="features3 cid-qKT6knwV2G" id="clients2-2p" style="background: #cdcdcd2e;">
+"""
+    
+    style_tag = head.find("style")
+    if style_tag:
+        current_styles = style_tag.string or ""
+        # Check if already added
+        if ".cid-qKT6knwV2G" not in current_styles:
+            # Append to existing styles
+            style_tag.string = current_styles + additional_css
+            print("✅ Custom CSS added to existing <style> tag")
+        else:
+            print("ℹ️ Custom CSS already exists in <style> tag")
+    else:
+        # Create new style tag if not exists
+        new_style = soup.new_tag("style")
+        new_style.string = additional_css
+        head.append(new_style)
+        print("✅ Created new <style> tag with custom CSS")
+    
+    # ====================================
+    # 3. ADD SECTION BEFORE </body>
+    # ====================================
+    body = soup.find("body")
+    if not body:
+        print("⚠️ No <body> tag found")
+        return str(soup)
+    
+    # Check if section already exists
+    existing_section = body.find("section", id="clients2-2p")
+    if existing_section:
+        print("ℹ️ Custom section already exists")
+    else:
+        # Create new section
+        new_section_html = """<section class="features3 cid-qKT6knwV2G" id="clients2-2p" style="background: #cdcdcd2e;">
 <div class="container">
 <div class="row align-center justify-content-center">
 
 </div>
 </div>
-</section>
-</body>
-</html>"""
-
-def update_canonical(html, domain):
-    soup = BeautifulSoup(html, "html.parser")
-    head = soup.find("head")
-    if not head:
-        print("⚠️ No <head> tag found")
-        return html
+</section>"""
+        
+        # Parse and insert before closing body
+        section_soup = BeautifulSoup(new_section_html, "html.parser")
+        new_section = section_soup.find("section")
+        body.append(new_section)
+        print("✅ Custom section added before </body>")
     
-    existing = head.find("link", rel="canonical")
-    if existing:
-        print(f"ℹ️ Canonical already exists: {existing.get('href')}")
-        return str(soup)
-    
-    canonical_url = f"https://www.{domain}/partners-1/"
-    new_tag = soup.new_tag("link", rel="canonical", href=canonical_url)
-    head.append(new_tag)
-    print(f"✅ Canonical added: {canonical_url}")
     return str(soup)
 
 def main():
@@ -90,7 +137,11 @@ def main():
     ftp_pass = os.environ.get("FTP_PASS")
     
     if not domain or not host or not ftp_user or not ftp_pass:
-        print("❌ Missing environment variables")
+        print("❌ Missing environment variables:")
+        print(f"   CURRENT_DOMAIN: {domain}")
+        print(f"   FTP_HOST: {host}")
+        print(f"   FTP_USER: {ftp_user}")
+        print(f"   FTP_PASS: {'***' if ftp_pass else 'None'}")
         exit(1)
     
     try:
@@ -102,8 +153,9 @@ def main():
         ftp.login(ftp_user, ftp_pass)
         print("✅ FTP login successful")
         
-        # ✅ Login hote hi partners-1 mein hain, no directory change needed
-        print("✅ Already in /partners-1 directory")
+        # Verify current directory
+        current_dir = ftp.pwd()
+        print(f"📂 Current directory: {current_dir}")
         
         remote_file = "index.html"
         bio = io.BytesIO()
@@ -116,13 +168,16 @@ def main():
             print("⚠️ index.html not found — creating new from template")
             html = generate_base_html()
         
-        updated_html = update_canonical(html, domain)
+        # Update HTML with all modifications
+        updated_html = update_html_content(html, domain)
         
+        # Upload updated file
         ftp.storbinary(
             f"STOR {remote_file}",
             io.BytesIO(updated_html.encode("utf-8"))
         )
         print(f"✅ Uploaded index.html ({len(updated_html)} bytes)")
+        print(f"✅ File location: {current_dir}/{remote_file}")
         
         ftp.quit()
         print(f"🎉 COMPLETED: {domain}")
@@ -130,6 +185,8 @@ def main():
     except Exception as e:
         print(f"❌ ERROR: {domain}")
         print(f"   {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         exit(1)
 
 if __name__ == "__main__":
