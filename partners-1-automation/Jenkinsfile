@@ -51,7 +51,7 @@ PY
           
           // Process each domain
           for (domain in domains) {
-            def credentialId = "partners-${domain}"
+            def credentialId = "partners@${domain}"
             
             echo "\n${'='*60}"
             echo "🔐 Credential: ${credentialId}"
