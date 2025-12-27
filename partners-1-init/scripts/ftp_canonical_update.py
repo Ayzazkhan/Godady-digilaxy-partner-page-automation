@@ -13,6 +13,7 @@ def generate_base_html():
 <title>Partners-1</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
 <meta name="robots" content="index, follow"/>
+<link rel="canonical" href="https://www.{domain}/partners-1/">
 <style>
 .client-wrapper {
   text-align: center;
@@ -20,11 +21,46 @@ def generate_base_html():
   border: 1px solid #f1ecec;
   height: 400px;
 }
+.cid-qKT6knwV2G .wrap-img img {
+  max-width: 60%;
+  width: 150px;
+}
+.cid-qKT6knwV2G .client-name {
+  color: #8d97ad;
+}
+.display-5 {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.9rem;
+  margin-bottom: 0px;
+  padding-top: 10px;
+}
+.client-wrapper {
+  text-align: center;
+  padding: 10px;
+  border: 1px solid #f1ecec;
+  height: 280px;
+}
+.wrap-img p {
+  margin-bottom: 0;
+}
+.pt-5 {
+  padding-top: 5rem !important;
+}
+.card-box a {
+  font-size: 13px;
+}
 </style>
 </head>
 <body>
 <section class="container pt-5">
   <h1 class="text-center">Partners-1</h1>
+</section>
+<section class="features3 cid-qKT6knwV2G" id="clients2-2p" style="background: #cdcdcd2e;">
+<div class="container">
+<div class="row align-center justify-content-center">
+
+</div>
+</div>
 </section>
 </body>
 </html>"""
