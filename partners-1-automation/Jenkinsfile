@@ -1,0 +1,104 @@
+pipeline {
+  agent any
+  
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+  }
+  
+  stages {
+    stage('Checkout') {
+      steps {
+        git branch: 'main',
+            url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git',
+            credentialsId: 'github-access'
+      }
+    }
+    
+    stage('Content Injection (partners-1)') {
+      steps {
+        script {
+          // Get domains list
+          def domainsOutput = sh(
+            script: """
+              python3 - <<'PY'
+import json
+print('\\n'.join(list(json.load(open('partners-1-init/data/domains.json')).keys())))
+PY
+            """,
+            returnStdout: true
+          ).trim()
+          
+          def domains = domainsOutput.tokenize('\n')
+          echo "📊 Total domains to process: ${domains.size()}"
+          
+          def successList = []
+          def failedList = []
+          
+          // Process each domain
+          for (domain in domains) {
+            def credentialId = "partners-${domain}"
+            
+            echo "\n${'='*60}"
+            echo "🔐 Credential: ${credentialId}"
+            echo "📌 Domain: ${domain}"
+            echo "${'='*60}"
+            
+            try {
+              withCredentials([
+                usernamePassword(
+                  credentialsId: credentialId,
+                  usernameVariable: 'FTP_USER',
+                  passwordVariable: 'FTP_PASS'
+                )
+              ]) {
+                sh """
+                  export CURRENT_DOMAIN='${domain}'
+                  export FTP_USER=\$FTP_USER
+                  export FTP_PASS=\$FTP_PASS
+                  python3 partners-1-init/scripts/ftp_content_inject.py
+                """
+              }
+              successList.add(domain)
+              echo "✅ SUCCESS: ${domain}"
+            } catch (err) {
+              echo "❌ FAILED: ${domain}"
+              echo "   Error: ${err.getMessage()}"
+              failedList.add(domain)
+              // Don't exit, continue with next domain
+            }
+          }
+          
+          // Final summary
+          echo "\n\n"
+          echo "${'='*70}"
+          echo "                    FINAL SUMMARY"
+          echo "${'='*70}"
+          echo "✅ SUCCESS: ${successList.size()} domains"
+          successList.each { echo "   ✔ ${it}" }
+          echo "\n❌ FAILED: ${failedList.size()} domains"
+          failedList.each { echo "   ✖ ${it}" }
+          echo "${'='*70}"
+          
+          // Set build status
+          if (failedList.size() > 0) {
+            currentBuild.result = 'UNSTABLE'
+            echo "\n⚠️ Build marked as UNSTABLE due to ${failedList.size()} failures"
+          }
+        }
+      }
+    }
+  }
+  
+  post {
+    success {
+      echo "\n🎉 Pipeline completed successfully - all domains processed"
+    }
+    unstable {
+      echo "\n⚠️ Pipeline completed with some failures - check summary above"
+    }
+    failure {
+      echo "\n❌ Pipeline failed - check console output"
+    }
+  }
+}
