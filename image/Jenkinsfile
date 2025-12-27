@@ -1,41 +1,115 @@
 pipeline {
   agent any
-
+  
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+  }
+  
   stages {
+    /* ==========================================
+       CHECKOUT REPOSITORY
+       ========================================== */
     stage('Checkout') {
       steps {
-        git credentialsId: 'github-access', url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git', branch: 'main'
+        git credentialsId: 'github-access',
+            url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git',
+            branch: 'main'
       }
     }
-
-    stage('Upload images') {
+    
+    /* ==========================================
+       IMAGE UPLOAD WORKFLOW:
+       1. Connect to FTP server
+       2. Create/verify partners-logo folder
+       3. Upload all images from local folder
+       4. Continue to next domain (no crash on error)
+       5. Show final summary
+       ========================================== */
+    stage('Upload Images') {
       steps {
         script {
-          // get domains list from JSON
-          def domainsOutput = sh(script: "python3 - <<'PY'\nimport json\nprint('\\n'.join(list(json.load(open('data/domains.json')).keys())))\nPY", returnStdout: true).trim()
+          // Get domains list from JSON
+          def domainsOutput = sh(
+            script: """
+              python3 - <<'PY'
+import json
+print('\\n'.join(list(json.load(open('data/domains.json')).keys())))
+PY
+            """,
+            returnStdout: true
+          ).trim()
+          
           def domains = domainsOutput.tokenize('\n')
-          echo "Domains to process: ${domains}"
-
+          echo "📊 Total domains to process: ${domains.size()}"
+          
+          def successList = []
+          def failedList = []
+          
+          // Process each domain
           for (d in domains) {
             def credId = "ftp-${d}"
-            echo "Processing ${d} with credential id ${credId}"
-            withCredentials([usernamePassword(credentialsId: credId, usernameVariable: 'FTP_USER', passwordVariable: 'FTP_PASS')]) {
-              sh """
-                export CURRENT_DOMAIN=${d}
-                export FTP_USER=${FTP_USER}
-                export FTP_PASS='${FTP_PASS}'
-                python3 image/scripts/sftp_upload_images.py
-              """
+            
+            echo "\n${'='*60}"
+            echo "🔐 Credential: ${credId}"
+            echo "📌 Domain: ${d}"
+            echo "${'='*60}"
+            
+            try {
+              withCredentials([
+                usernamePassword(
+                  credentialsId: credId,
+                  usernameVariable: 'FTP_USER',
+                  passwordVariable: 'FTP_PASS'
+                )
+              ]) {
+                sh """
+                  export CURRENT_DOMAIN='${d}'
+                  export FTP_USER=\$FTP_USER
+                  export FTP_PASS=\$FTP_PASS
+                  python3 image/scripts/sftp_upload_images.py
+                """
+              }
+              successList.add(d)
+              echo "✅ SUCCESS: ${d}"
+            } catch (err) {
+              echo "❌ FAILED: ${d}"
+              echo "   Error: ${err.getMessage()}"
+              failedList.add(d)
+              // Continue processing other domains (no crash)
             }
+          }
+          
+          // Final summary
+          echo "\n\n"
+          echo "${'='*70}"
+          echo "                    FINAL SUMMARY"
+          echo "${'='*70}"
+          echo "✅ SUCCESS: ${successList.size()} domains"
+          successList.each { echo "   ✔ ${it}" }
+          echo "\n❌ FAILED: ${failedList.size()} domains"
+          failedList.each { echo "   ✖ ${it}" }
+          echo "${'='*70}"
+          
+          // Set build status
+          if (failedList.size() > 0) {
+            currentBuild.result = 'UNSTABLE'
+            echo "\n⚠️ Build marked as UNSTABLE due to ${failedList.size()} failures"
           }
         }
       }
     }
   }
-
+  
   post {
-    success { echo "✅ All domains processed and images uploaded" }
-    failure { echo "❌ Some error occurred — check console" }
+    success {
+      echo "\n🎉 All domains processed - images uploaded successfully"
+    }
+    unstable {
+      echo "\n⚠️ Some domains failed - check summary above"
+    }
+    failure {
+      echo "\n❌ Pipeline failed - check console output"
+    }
   }
 }
-
