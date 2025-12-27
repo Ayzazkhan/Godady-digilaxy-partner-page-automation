@@ -32,29 +32,36 @@ pipeline {
     stage('Content Injection') {
       steps {
         script {
-          // Get domains list
-          def domainsOutput = sh(
+          // Load domains.json with host info
+          def domainsData = sh(
             script: """
               python3 - <<'PY'
 import json
-print('\\n'.join(list(json.load(open('partners-1-automation/data/domains.json')).keys())))
+data = json.load(open('partners-1-automation/data/domains.json'))
+for domain, info in data.items():
+    print(f"{domain}|{info['host']}")
 PY
             """,
             returnStdout: true
-          ).trim()
-          
-          def domains = domainsOutput.tokenize('\n')
-          echo "📊 Total domains to process: ${domains.size()}"
+          ).trim().split("\\n")
           
           def successList = []
           def failedList = []
           
+          echo "📊 Total domains to process: ${domainsData.size()}"
+          
           // Process each domain
-          for (domain in domains) {
-            def credentialId = "partners@${domain}"
+          for (line in domainsData) {
+            def parts = line.split("\\|")
+            def domain = parts[0]
+            def host = parts[1]
+            def credentialId = "partners-${domain}"
+            def ftpUsername = "partners@${domain}"
             
             echo "\n${'='*60}"
             echo "🔐 Credential: ${credentialId}"
+            echo "👤 FTP User: ${ftpUsername}"
+            echo "🌐 FTP Host: ${host}"
             echo "📌 Domain: ${domain}"
             echo "${'='*60}"
             
@@ -62,13 +69,14 @@ PY
               withCredentials([
                 usernamePassword(
                   credentialsId: credentialId,
-                  usernameVariable: 'FTP_USER',
+                  usernameVariable: 'FTP_PASS_USERNAME',
                   passwordVariable: 'FTP_PASS'
                 )
               ]) {
                 sh """
                   export CURRENT_DOMAIN='${domain}'
-                  export FTP_USER=\$FTP_USER
+                  export FTP_HOST='${host}'
+                  export FTP_USER='${ftpUsername}'
                   export FTP_PASS=\$FTP_PASS
                   python3 partners-1-automation/scripts/ftp_content_inject.py
                 """
