@@ -7,6 +7,9 @@ pipeline {
   }
   
   stages {
+    /* ==========================================
+       CHECKOUT REPOSITORY
+       ========================================== */
     stage('Checkout') {
       steps {
         git branch: 'main',
@@ -15,7 +18,18 @@ pipeline {
       }
     }
     
-    stage('Content Injection (partners-1)') {
+    /* ==========================================
+       CONTENT INJECTION WORKFLOW:
+       1. Download existing index.html from FTP
+       2. Create backup (rollback.html)
+       3. Load template (partner_block_template.html)
+       4. Replace {{content}} with actual content
+       5. Inject into <div class="row align-center...">
+       6. Upload updated index.html
+       7. Continue to next domain (no crash on error)
+       8. Show final summary
+       ========================================== */
+    stage('Content Injection') {
       steps {
         script {
           // Get domains list
@@ -23,7 +37,7 @@ pipeline {
             script: """
               python3 - <<'PY'
 import json
-print('\\n'.join(list(json.load(open('partners-1-init/data/domains.json')).keys())))
+print('\\n'.join(list(json.load(open('partners-1-automation/data/domains.json')).keys())))
 PY
             """,
             returnStdout: true
@@ -56,7 +70,7 @@ PY
                   export CURRENT_DOMAIN='${domain}'
                   export FTP_USER=\$FTP_USER
                   export FTP_PASS=\$FTP_PASS
-                  python3 partners-1-init/scripts/ftp_content_inject.py
+                  python3 partners-1-automation/scripts/ftp_content_inject.py
                 """
               }
               successList.add(domain)
@@ -65,7 +79,7 @@ PY
               echo "❌ FAILED: ${domain}"
               echo "   Error: ${err.getMessage()}"
               failedList.add(domain)
-              // Don't exit, continue with next domain
+              // Continue processing other domains (no crash)
             }
           }
           
@@ -92,10 +106,10 @@ PY
   
   post {
     success {
-      echo "\n🎉 Pipeline completed successfully - all domains processed"
+      echo "\n🎉 All domains processed successfully"
     }
     unstable {
-      echo "\n⚠️ Pipeline completed with some failures - check summary above"
+      echo "\n⚠️ Some domains failed - check summary above"
     }
     failure {
       echo "\n❌ Pipeline failed - check console output"
