@@ -19,17 +19,14 @@ pipeline {
     }
     
     /* ==========================================
-       CONTENT INJECTION WORKFLOW:
-       1. Download existing index.html from FTP
-       2. Create backup (rollback.html)
-       3. Load template (partner_block_template.html)
-       4. Replace {{content}} with actual content
-       5. Inject into <div class="row align-center...">
-       6. Upload updated index.html
-       7. Continue to next domain (no crash on error)
-       8. Show final summary
+       FTP LOGIN TEST:
+       1. Load domains.json with host info
+       2. Get credentials (username: partners@domain)
+       3. Test FTP login
+       4. Separate success/fail lists
+       5. Show final report
        ========================================== */
-    stage('Content Injection') {
+    stage('FTP Login Test') {
       steps {
         script {
           // Load domains.json with host info
@@ -37,7 +34,7 @@ pipeline {
             script: """
               python3 - <<'PY'
 import json
-data = json.load(open('partners-1-automation/data/domains.json'))
+data = json.load(open('partners-1-QA/data/domains.json'))
 for domain, info in data.items():
     print(f"{domain}|{info['host']}")
 PY
@@ -48,9 +45,10 @@ PY
           def successList = []
           def failedList = []
           
-          echo "📊 Total domains to process: ${domainsData.size()}"
+          echo "📊 Total domains to test: ${domainsData.size()}"
+          echo ""
           
-          // Process each domain
+          // Test each domain
           for (line in domainsData) {
             def parts = line.split("\\|")
             def domain = parts[0]
@@ -58,7 +56,7 @@ PY
             def credentialId = "partners-${domain}"
             def ftpUsername = "partners@${domain}"
             
-            echo "\n${'='*60}"
+            echo "${'='*60}"
             echo "🔐 Credential: ${credentialId}"
             echo "👤 FTP User: ${ftpUsername}"
             echo "🌐 FTP Host: ${host}"
@@ -78,34 +76,41 @@ PY
                   export FTP_HOST='${host}'
                   export FTP_USER='${ftpUsername}'
                   export FTP_PASS=\$FTP_PASS
-                  python3 partners-1-automation/scripts/ftp_content_inject.py
+                  python3 partners-1-QA/scripts/qa_check.py
                 """
               }
               successList.add(domain)
-              echo "✅ SUCCESS: ${domain}"
             } catch (err) {
-              echo "❌ FAILED: ${domain}"
-              echo "   Error: ${err.getMessage()}"
               failedList.add(domain)
-              // Continue processing other domains (no crash)
             }
           }
           
-          // Final summary
+          // Final Report
           echo "\n\n"
           echo "${'='*70}"
-          echo "                    FINAL SUMMARY"
+          echo "                  FTP LOGIN TEST REPORT"
           echo "${'='*70}"
-          echo "✅ SUCCESS: ${successList.size()} domains"
+          echo ""
+          echo "✅ SUCCESSFUL LOGINS: ${successList.size()} domains"
+          echo "${'='*70}"
           successList.each { echo "   ✔ ${it}" }
-          echo "\n❌ FAILED: ${failedList.size()} domains"
+          echo ""
+          echo ""
+          echo "❌ FAILED LOGINS: ${failedList.size()} domains"
+          echo "${'='*70}"
           failedList.each { echo "   ✖ ${it}" }
+          echo ""
+          echo "${'='*70}"
+          echo "Total Tested: ${domainsData.size()}"
+          echo "Success Rate: ${successList.size()}/${domainsData.size()} (${String.format('%.1f', (successList.size() * 100.0 / domainsData.size()))}%)"
           echo "${'='*70}"
           
           // Set build status
           if (failedList.size() > 0) {
             currentBuild.result = 'UNSTABLE'
-            echo "\n⚠️ Build marked as UNSTABLE due to ${failedList.size()} failures"
+            echo "\n⚠️ ${failedList.size()} domains have login issues"
+          } else {
+            echo "\n🎉 All domains have successful FTP login!"
           }
         }
       }
@@ -114,13 +119,14 @@ PY
   
   post {
     success {
-      echo "\n🎉 All domains processed successfully"
+      echo "\n🎉 FTP login test completed - all successful"
     }
     unstable {
-      echo "\n⚠️ Some domains failed - check summary above"
+      echo "\n⚠️ Some domains failed login - check report above"
     }
     failure {
-      echo "\n❌ Pipeline failed - check console output"
+      echo "\n❌ Test pipeline failed - check console output"
     }
   }
 }
+
