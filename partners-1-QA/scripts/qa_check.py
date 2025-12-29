@@ -26,7 +26,7 @@ def test_ftp_login(domain, host, ftp_user, ftp_pass):
 
 def main():
     current_domain = os.environ.get("CURRENT_DOMAIN")
-    ftp_user = os.environ.get("FTP_USER")
+    ftp_user = os.environ.get("FTP_USER")  # ✅ Direct from Jenkins credentials
     ftp_pass = os.environ.get("FTP_PASS")
     
     if not current_domain or not ftp_user or not ftp_pass:
@@ -46,6 +46,7 @@ def main():
         print(f"❌ Host not defined for {current_domain}")
         exit(1)
     
+    # ✅ Use FTP_USER directly from credentials (already has partners@domain format)
     success = test_ftp_login(current_domain, host, ftp_user, ftp_pass)
     
     if not success:
