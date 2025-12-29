@@ -7,6 +7,9 @@ pipeline {
   }
   
   stages {
+    /* ==========================================
+       CHECKOUT REPOSITORY
+       ========================================== */
     stage('Checkout') {
       steps {
         git branch: 'main',
@@ -15,42 +18,63 @@ pipeline {
       }
     }
     
+    /* ==========================================
+       FTP LOGIN TEST:
+       1. Load domains.json with host info
+       2. Get credentials (username: partners@domain)
+       3. Test FTP login
+       4. Separate success/fail lists
+       5. Show final report
+       ========================================== */
     stage('FTP Login Test') {
       steps {
         script {
-          // Get domains list
-          def domainsOutput = sh(
+          // Load domains.json with host info
+          def domainsData = sh(
             script: """
               python3 - <<'PY'
 import json
-print('\\n'.join(list(json.load(open('partners-1-QA/data/domains.json')).keys())))
+data = json.load(open('partners-1-QA/data/domains.json'))
+for domain, info in data.items():
+    print(f"{domain}|{info['host']}")
 PY
             """,
             returnStdout: true
-          ).trim()
-          
-          def domains = domainsOutput.tokenize('\n')
-          echo "📊 Total domains to test: ${domains.size()}"
-          echo ""
+          ).trim().split("\\n")
           
           def successList = []
           def failedList = []
           
+          echo "📊 Total domains to test: ${domainsData.size()}"
+          echo ""
+          
           // Test each domain
-          for (domain in domains) {
+          for (line in domainsData) {
+            def parts = line.split("\\|")
+            def domain = parts[0]
+            def host = parts[1]
             def credentialId = "partners-${domain}"
+            def ftpUsername = "partners@${domain}"
+            
+            echo "${'='*60}"
+            echo "🔐 Credential: ${credentialId}"
+            echo "👤 FTP User: ${ftpUsername}"
+            echo "🌐 FTP Host: ${host}"
+            echo "📌 Domain: ${domain}"
+            echo "${'='*60}"
             
             try {
               withCredentials([
                 usernamePassword(
                   credentialsId: credentialId,
-                  usernameVariable: 'FTP_USER',
+                  usernameVariable: 'FTP_PASS_USERNAME',
                   passwordVariable: 'FTP_PASS'
                 )
               ]) {
                 sh """
                   export CURRENT_DOMAIN='${domain}'
-                  export FTP_USER=\$FTP_USER
+                  export FTP_HOST='${host}'
+                  export FTP_USER='${ftpUsername}'
                   export FTP_PASS=\$FTP_PASS
                   python3 partners-1-QA/scripts/qa_check.py
                 """
@@ -77,8 +101,8 @@ PY
           failedList.each { echo "   ✖ ${it}" }
           echo ""
           echo "${'='*70}"
-          echo "Total Tested: ${domains.size()}"
-          echo "Success Rate: ${successList.size()}/${domains.size()} (${String.format('%.1f', (successList.size() * 100.0 / domains.size()))}%)"
+          echo "Total Tested: ${domainsData.size()}"
+          echo "Success Rate: ${successList.size()}/${domainsData.size()} (${String.format('%.1f', (successList.size() * 100.0 / domainsData.size()))}%)"
           echo "${'='*70}"
           
           // Set build status
