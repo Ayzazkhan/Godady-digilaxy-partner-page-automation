@@ -1,0 +1,107 @@
+pipeline {
+  agent any
+  
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+  }
+  
+  stages {
+    stage('Checkout') {
+      steps {
+        git branch: 'main',
+            url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git',
+            credentialsId: 'github-access'
+      }
+    }
+    
+    stage('FTP Login Test') {
+      steps {
+        script {
+          // Get domains list
+          def domainsOutput = sh(
+            script: """
+              python3 - <<'PY'
+import json
+print('\\n'.join(list(json.load(open('partners-1-QA/data/domains.json')).keys())))
+PY
+            """,
+            returnStdout: true
+          ).trim()
+          
+          def domains = domainsOutput.tokenize('\n')
+          echo "📊 Total domains to test: ${domains.size()}"
+          echo ""
+          
+          def successList = []
+          def failedList = []
+          
+          // Test each domain
+          for (domain in domains) {
+            def credentialId = "partners-${domain}"
+            
+            try {
+              withCredentials([
+                usernamePassword(
+                  credentialsId: credentialId,
+                  usernameVariable: 'FTP_USER',
+                  passwordVariable: 'FTP_PASS'
+                )
+              ]) {
+                sh """
+                  export CURRENT_DOMAIN='${domain}'
+                  export FTP_USER=\$FTP_USER
+                  export FTP_PASS=\$FTP_PASS
+                  python3 partners-1-QA/scripts/qa_check.py
+                """
+              }
+              successList.add(domain)
+            } catch (err) {
+              failedList.add(domain)
+            }
+          }
+          
+          // Final Report
+          echo "\n\n"
+          echo "${'='*70}"
+          echo "                  FTP LOGIN TEST REPORT"
+          echo "${'='*70}"
+          echo ""
+          echo "✅ SUCCESSFUL LOGINS: ${successList.size()} domains"
+          echo "${'='*70}"
+          successList.each { echo "   ✔ ${it}" }
+          echo ""
+          echo ""
+          echo "❌ FAILED LOGINS: ${failedList.size()} domains"
+          echo "${'='*70}"
+          failedList.each { echo "   ✖ ${it}" }
+          echo ""
+          echo "${'='*70}"
+          echo "Total Tested: ${domains.size()}"
+          echo "Success Rate: ${successList.size()}/${domains.size()} (${String.format('%.1f', (successList.size() * 100.0 / domains.size()))}%)"
+          echo "${'='*70}"
+          
+          // Set build status
+          if (failedList.size() > 0) {
+            currentBuild.result = 'UNSTABLE'
+            echo "\n⚠️ ${failedList.size()} domains have login issues"
+          } else {
+            echo "\n🎉 All domains have successful FTP login!"
+          }
+        }
+      }
+    }
+  }
+  
+  post {
+    success {
+      echo "\n🎉 FTP login test completed - all successful"
+    }
+    unstable {
+      echo "\n⚠️ Some domains failed login - check report above"
+    }
+    failure {
+      echo "\n❌ Test pipeline failed - check console output"
+    }
+  }
+}
