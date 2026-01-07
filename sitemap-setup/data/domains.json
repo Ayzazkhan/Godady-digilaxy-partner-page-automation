@@ -1,1 +1,34 @@
-
+{
+  "studentconsultancy.co.uk": {
+    "host": "ftp.studentconsultancy.co.uk",
+    "folder": "studentconsultancy.co.uk"
+  },
+  "assignmentswriter.co.uk": {
+    "host": "ftp.studentconsultancy.co.uk",
+    "folder": "assignmentswriter.co.uk"
+  },
+  "laweducators.co.uk": {
+    "host": "ftp.studentconsultancy.co.uk",
+    "folder": "laweducators.co.uk"
+  },
+  "academicassociates.co.uk": {
+    "host": "ftp.studentconsultancy.co.uk",
+    "folder": "academicassociates.co.uk"
+  },
+  "academicattorneys.co.uk": {
+    "host": "ftp.studentconsultancy.co.uk",
+    "folder": "academicattorneys.co.uk"
+  },
+  "academicsassociates.co.uk": {
+    "host": "ftp.studentconsultancy.co.uk",
+    "folder": "academicsassociates.co.uk"
+  },
+  "academicwritingreviews.co.uk": {
+    "host": "ftp.studentconsultancy.co.uk",
+    "folder": "academicwritingreviews.co.uk"
+  },
+  "accountingassignmenthelps.co.uk": {
+    "host": "ftp.studentconsultancy.co.uk",
+    "folder": "accountingassignmenthelps.co.uk"
+  }
+}
