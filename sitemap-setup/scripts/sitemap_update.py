@@ -118,10 +118,24 @@ def main():
     domain = os.environ.get("CURRENT_DOMAIN")
     user = os.environ.get("FTP_USER", "all@63u.9b4.mytemp.website")
     password = os.environ.get("FTP_PASS", "A4tech@1234")
+    
+    # Hardcoded fallback
+    if user == "${FTP_USER}":
+        user = "all@63u.9b4.mytemp.website"
+    if password == "${FTP_PASS}":
+        password = "A4tech@1234"
 
     if not domain:
         print("❌ No CURRENT_DOMAIN")
         exit(1)
+    
+    # Show credentials being used
+    print("\n" + "="*70)
+    print("🔐 CREDENTIALS CHECK:")
+    print("="*70)
+    print(f"Username: {user}")
+    print(f"Password: {password}")
+    print("="*70 + "\n")
 
     with open(DOMAINS_FILE) as f:
         config = json.load(f)[domain]
@@ -131,7 +145,7 @@ def main():
 
         ftp = FTP(config["host"], timeout=30)
         ftp.login(user, password)
-        print("✅ Login")
+        print("✅ Login successful")
 
         ftp.cwd(config["folder"])
         print(f"✅ Folder: {config['folder']}")
