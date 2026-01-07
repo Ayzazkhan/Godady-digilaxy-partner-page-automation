@@ -6,6 +6,28 @@ import xml.etree.ElementTree as ET
 
 DOMAINS_FILE = "sitemap-setup/data/domains.json"
 
+def create_new_sitemap(domain):
+    """Create a brand new sitemap with partners entries"""
+    sitemap = f'''<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://{domain}/</loc>
+    <lastmod>{datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")}</lastmod>
+    <priority>1.00</priority>
+  </url>
+  <url>
+    <loc>https://{domain}/partners/</loc>
+    <lastmod>{datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")}</lastmod>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://{domain}/partners-1/</loc>
+    <lastmod>{datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")}</lastmod>
+    <priority>0.80</priority>
+  </url>
+</urlset>'''
+    return sitemap
+
 def update_sitemap(content, domain):
     try:
         root = ET.fromstring(content)
@@ -89,7 +111,26 @@ def main():
         ftp.cwd(config["folder"])
         print(f"✅ Folder: {config['folder']}")
         
-        # Download
+        # Check if sitemap.xml exists
+        files = ftp.nlst()
+        sitemap_exists = "sitemap.xml" in files
+        
+        if not sitemap_exists:
+            print("⚠️  sitemap.xml not found")
+            print("🔧 Creating new sitemap.xml...")
+            
+            # Create new sitemap
+            new_sitemap = create_new_sitemap(domain)
+            
+            # Upload new sitemap
+            ftp.storbinary("STOR sitemap.xml", io.BytesIO(new_sitemap.encode()))
+            print("✨ Created new sitemap.xml with partners entries")
+            print("🎉 SUCCESS")
+            
+            ftp.quit()
+            exit(0)
+        
+        # Download existing sitemap
         bio = io.BytesIO()
         ftp.retrbinary("RETR sitemap.xml", bio.write)
         content = bio.getvalue().decode("utf-8")
