@@ -114,13 +114,6 @@ def update_sitemap(content, domain):
         
         urls = root.findall('.//ns:url', namespace)
         
-        # Find last 0.80 priority
-        last_080 = -1
-        for idx, url in enumerate(urls):
-            priority = url.find('ns:priority', namespace)
-            if priority is not None and priority.text == "0.80":
-                last_080 = idx
-        
         p1 = f"https://{domain}/partners/"
         p2 = f"https://{domain}/partners-1/"
         
@@ -138,22 +131,57 @@ def update_sitemap(content, domain):
             root.remove(url)
             print(f"✅ Removed duplicate")
         
+        # NOW recalculate position AFTER removing duplicates
+        # Get all URL elements
+        url_elements = root.findall('.//ns:url', namespace)
+        
+        print(f"📊 URLs in sitemap after cleanup: {len(url_elements)}")
+        
+        # Find the actual position of the last <url> element in root's children
+        last_url_pos = -1
+        for idx, child in enumerate(root):
+            if child.tag == '{http://www.sitemaps.org/schemas/sitemap/0.9}url' or child.tag == 'url':
+                last_url_pos = idx
+        
+        print(f"📍 Last <url> element at position: {last_url_pos}")
+        
+        # Find last 0.80 priority (for reference, but we'll insert after last URL)
+        last_080 = -1
+        for idx, url in enumerate(url_elements):
+            priority = url.find('ns:priority', namespace)
+            if priority is not None and priority.text == "0.80":
+                last_080 = idx
+        
+        print(f"📍 Last 0.80 priority URL index: {last_080}")
+        
         # Create fresh entries
         def make_entry(path):
-            url = ET.Element("url")
-            ET.SubElement(url, "loc").text = f"https://{domain}/{path}"
-            ET.SubElement(url, "lastmod").text = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
-            ET.SubElement(url, "priority").text = "0.80"
+            url = ET.Element("{http://www.sitemaps.org/schemas/sitemap/0.9}url")
+            loc = ET.SubElement(url, "{http://www.sitemaps.org/schemas/sitemap/0.9}loc")
+            loc.text = f"https://{domain}/{path}"
+            lastmod = ET.SubElement(url, "{http://www.sitemaps.org/schemas/sitemap/0.9}lastmod")
+            lastmod.text = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
+            priority = ET.SubElement(url, "{http://www.sitemaps.org/schemas/sitemap/0.9}priority")
+            priority.text = "0.80"
             return url
         
-        pos = last_080 + 1 if last_080 >= 0 else len(root)
+        # Insert after the last URL element (or at end if no URLs)
+        insert_pos = last_url_pos + 1 if last_url_pos >= 0 else len(root)
+        print(f"📍 Inserting at position: {insert_pos}")
         
-        # Add fresh entries
-        root.insert(pos, make_entry("partners/"))
-        print(f"✅ Added partners: {p1}")
+        # Add partners entry
+        partners_entry = make_entry("partners/")
+        root.insert(insert_pos, partners_entry)
+        print(f"✅ Inserted partners/ at position {insert_pos}")
         
-        root.insert(pos + 1, make_entry("partners-1/"))
-        print(f"✅ Added partners-1: {p2}")
+        # Add partners-1 entry
+        partners1_entry = make_entry("partners-1/")
+        root.insert(insert_pos + 1, partners1_entry)
+        print(f"✅ Inserted partners-1/ at position {insert_pos + 1}")
+        
+        # Verify insertion
+        final_url_count = len(root.findall('.//ns:url', namespace))
+        print(f"✨ Final sitemap has {final_url_count} URLs")
         
         return '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(root, encoding='unicode')
     except Exception as e:
