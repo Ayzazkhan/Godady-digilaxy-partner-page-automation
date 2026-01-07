@@ -1,23 +1,42 @@
 {
-  
+  "studentconsultancy.co.uk": {
+    "host": "160.153.129.20",
+    "base_path": "/home/bpvhovuor5y4/public_html",
+    "folder": "studentconsultancy.co.uk"
+  },
   "assignmentswriter.co.uk": {
-    "host": "ftp.studentconsultancy.co.uk",
+    "host": "160.153.129.20",
+    "base_path": "/home/bpvhovuor5y4/public_html",
     "folder": "assignmentswriter.co.uk"
   },
   "laweducators.co.uk": {
-    "host": "ftp.studentconsultancy.co.uk",
+    "host": "160.153.129.20",
+    "base_path": "/home/bpvhovuor5y4/public_html",
     "folder": "laweducators.co.uk"
   },
   "academicassociates.co.uk": {
-    "host": "ftp.studentconsultancy.co.uk",
+    "host": "160.153.129.20",
+    "base_path": "/home/bpvhovuor5y4/public_html",
     "folder": "academicassociates.co.uk"
   },
   "academicattorneys.co.uk": {
-    "host": "ftp.studentconsultancy.co.uk",
+    "host": "160.153.129.20",
+    "base_path": "/home/bpvhovuor5y4/public_html",
     "folder": "academicattorneys.co.uk"
   },
   "academicsassociates.co.uk": {
-    "host": "ftp.studentconsultancy.co.uk",
+    "host": "160.153.129.20",
+    "base_path": "/home/bpvhovuor5y4/public_html",
     "folder": "academicsassociates.co.uk"
+  },
+  "academicwritingreviews.co.uk": {
+    "host": "160.153.129.20",
+    "base_path": "/home/bpvhovuor5y4/public_html",
+    "folder": "academicwritingreviews.co.uk"
+  },
+  "accountingassignmenthelps.co.uk": {
+    "host": "160.153.129.20",
+    "base_path": "/home/bpvhovuor5y4/public_html",
+    "folder": "accountingassignmenthelps.co.uk"
   }
 }
