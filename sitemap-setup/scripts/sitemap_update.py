@@ -21,17 +21,24 @@ def update_sitemap(content, domain):
             if priority is not None and priority.text == "0.80":
                 last_080 = idx
         
-        # Check existing
-        existing = [url.find('ns:loc', namespace).text for url in urls if url.find('ns:loc', namespace) is not None]
-        
         p1 = f"https://{domain}/partners/"
         p2 = f"https://{domain}/partners-1/"
         
-        if p1 in existing and p2 in existing:
-            print("✅ Already exists")
-            return None
+        # Check for duplicates and remove them first
+        urls_to_remove = []
+        for url in urls:
+            loc = url.find('ns:loc', namespace)
+            if loc is not None:
+                if loc.text == p1 or loc.text == p2:
+                    urls_to_remove.append(url)
+                    print(f"🗑️  Found duplicate: {loc.text}")
         
-        # Create entries
+        # Remove duplicates
+        for url in urls_to_remove:
+            root.remove(url)
+            print(f"✅ Removed duplicate")
+        
+        # Create fresh entries
         def make_entry(path):
             url = ET.Element("url")
             ET.SubElement(url, "loc").text = f"https://{domain}/{path}"
@@ -39,15 +46,14 @@ def update_sitemap(content, domain):
             ET.SubElement(url, "priority").text = "0.80"
             return url
         
-        pos = last_080 + 1 if last_080 >= 0 else len(urls)
+        pos = last_080 + 1 if last_080 >= 0 else len(root)
         
-        if p1 not in existing:
-            root.insert(pos, make_entry("partners/"))
-            print(f"✨ Added {p1}")
+        # Add fresh entries
+        root.insert(pos, make_entry("partners/"))
+        print(f"✨ Added {p1}")
         
-        if p2 not in existing:
-            root.insert(pos + 1, make_entry("partners-1/"))
-            print(f"✨ Added {p2}")
+        root.insert(pos + 1, make_entry("partners-1/"))
+        print(f"✨ Added {p2}")
         
         return '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(root, encoding='unicode')
     except Exception as e:
