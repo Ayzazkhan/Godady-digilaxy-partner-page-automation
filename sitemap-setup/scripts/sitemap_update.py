@@ -6,9 +6,80 @@ import xml.etree.ElementTree as ET
 
 DOMAINS_FILE = "sitemap-setup/data/domains.json"
 
-def create_new_sitemap(domain):
-    """Create a brand new sitemap with partners entries"""
-    sitemap = f'''<?xml version="1.0" encoding="UTF-8"?>
+def create_new_sitemap(domain, ftp):
+    """Create a brand new sitemap by scanning folder files"""
+    print("🔍 Scanning folder for files...")
+    
+    try:
+        # Get all files in folder
+        all_items = []
+        ftp.retrlines('LIST', all_items.append)
+        
+        # Filter for HTML/PHP files
+        pages = []
+        for item in all_items:
+            parts = item.split()
+            if len(parts) >= 9:
+                filename = parts[-1]
+                # Check if it's a file (not directory) and is HTML/PHP
+                if not item.startswith('d') and (filename.endswith('.html') or filename.endswith('.php') or filename.endswith('.htm')):
+                    pages.append(filename)
+        
+        print(f"📄 Found {len(pages)} pages: {pages[:10]}")
+        
+        # Start building sitemap
+        urlset = ET.Element('urlset')
+        urlset.set('xmlns', 'http://www.sitemaps.org/schemas/sitemap/0.9')
+        
+        timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        
+        # Add homepage
+        home_url = ET.SubElement(urlset, 'url')
+        ET.SubElement(home_url, 'loc').text = f"https://{domain}/"
+        ET.SubElement(home_url, 'lastmod').text = timestamp
+        ET.SubElement(home_url, 'priority').text = "1.00"
+        
+        # Add found pages
+        for page in pages:
+            if page == 'index.html' or page == 'index.php':
+                continue  # Already added as homepage
+            
+            # Create URL entry
+            url_elem = ET.SubElement(urlset, 'url')
+            page_path = page.replace('.html', '').replace('.php', '').replace('.htm', '')
+            if page_path == 'index':
+                continue
+            
+            ET.SubElement(url_elem, 'loc').text = f"https://{domain}/{page}"
+            ET.SubElement(url_elem, 'lastmod').text = timestamp
+            ET.SubElement(url_elem, 'priority').text = "0.80"
+        
+        # Add partners pages
+        partners_url = ET.SubElement(urlset, 'url')
+        ET.SubElement(partners_url, 'loc').text = f"https://{domain}/partners/"
+        ET.SubElement(partners_url, 'lastmod').text = timestamp
+        ET.SubElement(partners_url, 'priority').text = "0.80"
+        
+        partners1_url = ET.SubElement(urlset, 'url')
+        ET.SubElement(partners1_url, 'loc').text = f"https://{domain}/partners-1/"
+        ET.SubElement(partners1_url, 'lastmod').text = timestamp
+        ET.SubElement(partners1_url, 'priority').text = "0.80"
+        
+        # Convert to string
+        xml_str = ET.tostring(urlset, encoding='unicode', method='xml')
+        sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n' + xml_str
+        
+        total_urls = len(urlset.findall('url'))
+        print(f"✨ Generated sitemap with {total_urls} URLs")
+        
+        return sitemap
+        
+    except Exception as e:
+        print(f"⚠️  Could not scan folder: {e}")
+        print("🔧 Creating basic sitemap instead...")
+        
+        # Fallback to basic sitemap
+        sitemap = f'''<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://{domain}/</loc>
@@ -26,7 +97,7 @@ def create_new_sitemap(domain):
     <priority>0.80</priority>
   </url>
 </urlset>'''
-    return sitemap
+        return sitemap
 
 def update_sitemap(content, domain):
     try:
@@ -119,12 +190,12 @@ def main():
             print("⚠️  sitemap.xml not found")
             print("🔧 Creating new sitemap.xml...")
             
-            # Create new sitemap
-            new_sitemap = create_new_sitemap(domain)
+            # Create new sitemap by scanning folder
+            new_sitemap = create_new_sitemap(domain, ftp)
             
             # Upload new sitemap
             ftp.storbinary("STOR sitemap.xml", io.BytesIO(new_sitemap.encode()))
-            print("✨ Created new sitemap.xml with partners entries")
+            print("✨ Created and uploaded new sitemap.xml")
             print("🎉 SUCCESS")
             
             ftp.quit()
