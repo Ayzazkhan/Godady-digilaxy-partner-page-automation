@@ -1,414 +1,74 @@
 {
-  "academicassociates.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "academicassociates.co.uk"
-  },
-  "academicattorneys.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "academicattorneys.co.uk"
-  },
-  "academicsassociates.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "academicsassociates.co.uk"
-  },
-  "academicwritingreviews.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "academicwritingreviews.co.uk"
-  },
-  "accountingassignmenthelps.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "accountingassignmenthelps.co.uk"
-  },
-  "attorneyclub.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "attorneyclub.co.uk"
-  },
-  "attorneyonline.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "attorneyonline.co.uk"
-  },
-  "bestonlineclasshelp.com": {
-    "host": "160.153.129.20",
-    "folder": "bestonlineclasshelp.com"
-  },
-  "britianlawyers.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "britianlawyers.co.uk"
-  },
-  "britishlawyers.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "britishlawyers.co.uk"
-  },
-  "capstonewritingservices.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "capstonewritingservices.co.uk"
-  },
-  "courtproceeding.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "courtproceeding.co.uk"
-  },
-  "digitalcontentwriters.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "digitalcontentwriters.co.uk"
-  },
-  "economicsassignmenthelp.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "economicsassignmenthelp.co.uk"
-  },
-  "educationallawyer.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "educationallawyer.co.uk"
-  },
-  "engineeringassignmenthelp.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "engineeringassignmenthelp.co.uk"
-  },
-  "examhelpusa.com": {
-    "host": "160.153.129.20",
-    "folder": "examhelpusa.com"
-  },
-  "financeassignmenthelp.uk": {
-    "host": "160.153.129.20",
-    "folder": "financeassignmenthelp.uk"
-  },
-  "helplawassignmnent.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "helplawassignmnent.co.uk"
-  },
-  "helpwithlawassignmnent.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "helpwithlawassignmnent.co.uk"
-  },
-  "hesiexamtaker.com": {
-    "host": "160.153.129.20",
-    "folder": "hesiexamtaker.com"
-  },
-  "hirebestsupport.com": {
-    "host": "160.153.129.20",
-    "folder": "hirebestsupport.com"
-  },
-  "law-education.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "law-education.co.uk"
-  },
-  "lawassignmentservice.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawassignmentservice.co.uk"
-  },
-  "lawassignmentsupport.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawassignmentsupport.co.uk"
-  },
-  "lawassignmentwriter.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawassignmentwriter.co.uk"
-  },
-  "lawassignmentwritingservice.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawassignmentwritingservice.co.uk"
-  },
-  "lawcourseworkhelper.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawcourseworkhelper.co.uk"
-  },
-  "lawcourseworkwriter.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawcourseworkwriter.co.uk"
-  },
-  "lawcourseworkwritingservice.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawcourseworkwritingservice.co.uk"
-  },
-  "laweducationhelp.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "laweducationhelp.co.uk"
-  },
-  "laweducationist.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "laweducationist.co.uk"
-  },
-  "laweducator.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "laweducator.co.uk"
-  },
-  "lawessayhelper.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawessayhelper.co.uk"
-  },
-  "lawessayhelponline.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawessayhelponline.co.uk"
-  },
-  "lawessaysupport.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawessaysupport.co.uk"
-  },
-  "lawessaywritingservice.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawessaywritingservice.co.uk"
-  },
-  "lawyersunit.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawyersunit.co.uk"
-  },
-  "lawlondon.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawlondon.co.uk"
-  },
-  "lawmakers.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawmakers.uk"
-  },
-  "lawuniversity.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawuniversity.co.uk"
-  },
-  "lawwritingservice.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawwritingservice.co.uk"
-  },
-  "lawyers-edu.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawyers-edu.co.uk"
-  },
-  "lawyers-gov.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawyers-gov.co.uk"
-  },
-  "lawyersdegree.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawyersdegree.co.uk"
-  },
-  "lawyerslab.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawyerslab.co.uk"
-  },
-  "lawyerspanel.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawyerspanel.co.uk"
-  },
-  "londonlawyers.eu": {
-    "host": "160.153.129.20",
-    "folder": "londonlawyers.eu"
-  },
-  "mbaassignmentsupport.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "mbaassignmentsupport.co.uk"
-  },
-  "matlabassignmenthelp.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "matlabassignmenthelp.co.uk"
-  },
-  "academiclawyer.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "academiclawyer.co.uk"
-  },
-  "academicresearchers.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "academicresearchers.co.uk"
-  },
-  "onlineclassassistance.us": {
-    "host": "160.153.129.20",
-    "folder": "onlineclassassistance.us"
-  },
-  "onlineclassessupport.com": {
-    "host": "160.153.129.20",
-    "folder": "onlineclassessupport.com"
-  },
-  "onlineclasshelper.us": {
-    "host": "160.153.129.20",
-    "folder": "onlineclasshelper.us"
-  },
-  "onlineclasshelpexperts.com": {
-    "host": "160.153.129.20",
-    "folder": "onlineclasshelpexperts.com"
-  },
-  "onlineclasshelplive.com": {
-    "host": "160.153.129.20",
-    "folder": "onlineclasshelplive.com"
-  },
-  "onlineclasshelpservice.com": {
-    "host": "160.153.129.20",
-    "folder": "onlineclasshelpservice.com"
-  },
-  "onlineclasssupport.us": {
-    "host": "160.153.129.20",
-    "folder": "onlineclasssupport.us"
-  },
-  "onlineclasssupporter.com": {
-    "host": "160.153.129.20",
-    "folder": "onlineclasssupporter.com"
-  },
-  "onlineclasstakers.us": {
-    "host": "160.153.129.20",
-    "folder": "onlineclasstakers.us"
-  },
-  "onlinecourseassistant.com": {
-    "host": "160.153.129.20",
-    "folder": "onlinecourseassistant.com"
-  },
-  "onlineexamhelpusa.com": {
-    "host": "160.153.129.20",
-    "folder": "onlineexamhelpusa.com"
-  },
-  "onlinestudyhelpers.com": {
-    "host": "160.153.129.20",
-    "folder": "onlinestudyhelpers.com"
-  },
-  "paperhelp.uk": {
-    "host": "160.153.129.20",
-    "folder": "paperhelp.uk"
-  },
-  "paperhelper.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "paperhelper.co.uk"
-  },
-  "papershelp.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "papershelp.co.uk"
-  },
-  "premiumlawyers.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "premiumlawyers.co.uk"
-  },
-  "primepapers.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "primepapers.co.uk"
-  },
-  "spssassignmenthelp.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "spssassignmenthelp.co.uk"
-  },
-  "studylawyers.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "studylawyers.co.uk"
-  },
-  "supportonlineclass.com": {
-    "host": "160.153.129.20",
-    "folder": "supportonlineclass.com"
-  },
-  "takemyteasexams.com": {
-    "host": "160.153.129.20",
-    "folder": "takemyteasexams.com"
-  },
-  "teasexamsupport.com": {
-    "host": "160.153.129.20",
-    "folder": "teasexamsupport.com"
-  },
-  "theclasshelperonline.com": {
-    "host": "160.153.129.20",
-    "folder": "theclasshelperonline.com"
-  },
-  "theclasstakeronline.com": {
-    "host": "160.153.129.20",
-    "folder": "theclasstakeronline.com"
-  },
-  "theclasstakersonline.com": {
-    "host": "160.153.129.20",
-    "folder": "theclasstakersonline.com"
-  },
-  "thelondonlawyers.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "thelondonlawyers.co.uk"
-  },
-  "theonlineclassassistance.com": {
-    "host": "160.153.129.20",
-    "folder": "theonlineclassassistance.com"
-  },
-  "theonlineclasseshelper.com": {
-    "host": "160.153.129.20",
-    "folder": "theonlineclasseshelper.com"
-  },
-  "theonlineclassexperts.com": {
-    "host": "160.153.129.20",
-    "folder": "theonlineclassexperts.com"
-  },
-  "theonlineclasshelp247.com": {
-    "host": "160.153.129.20",
-    "folder": "theonlineclasshelp247.com"
-  },
-  "theonlineclasssupport.com": {
-    "host": "160.153.129.20",
-    "folder": "theonlineclasssupport.com"
-  },
-  "topclasshelponline.com": {
-    "host": "160.153.129.20",
-    "folder": "topclasshelponline.com"
-  },
-  "universitypaperhelp.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "universitypaperhelp.co.uk"
-  },
-  "virtualclasssupport.com": {
-    "host": "160.153.129.20",
-    "folder": "virtualclasssupport.com"
-  },
-  "writersreviews.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "writersreviews.co.uk"
-  },
-  "writingreviews.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "writingreviews.co.uk"
-  },
-  "academicpaperhelp.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "academicpaperhelp.co.uk"
-  },
-  "nursingassignmenthelp.uk": {
-    "host": "160.153.129.20",
-    "folder": "nursingassignmenthelp.uk"
-  },
-  "onlineclasseshelp.us": {
-    "host": "160.153.129.20",
-    "folder": "onlineclasseshelp.us"
-  },
-  "trademarklawyersusa.com": {
-    "host": "160.153.129.20",
-    "folder": "trademarklawyersusa.com"
-  },
-  "trademarkarena.com": {
-    "host": "160.153.129.20",
-    "folder": "trademarkarena.com"
-  },
-  "lawassignmenthelp.org": {
-    "host": "160.153.129.20",
-    "folder": "lawassignmenthelp.org"
-  },
-  "lawassignmentwriting.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawassignmentwriting.co.uk"
-  },
-  "lawassignmentwriting.net": {
-    "host": "160.153.129.20",
-    "folder": "lawassignmentwriting.net"
-  },
-  "lawassignmentwritinghelp.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawassignmentwritinghelp.co.uk"
-  },
-  "lawassignmentwritinghelp.com": {
-    "host": "160.153.129.20",
-    "folder": "lawassignmentwritinghelp.com"
-  },
-  "lawassignmentwritinghelp.org": {
-    "host": "160.153.129.20",
-    "folder": "lawassignmentwritinghelp.org"
-  },
-  "lawassignmentwritingservices.org": {
-    "host": "160.153.129.20",
-    "folder": "lawassignmentwritingservices.org"
-  },
-  "lawyerspros.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "lawyerspros.co.uk"
-  },
-  "marketingassignmentsolution.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "marketingassignmentsolution.co.uk"
-  },
-  "nursingessayhelper.co.uk": {
-    "host": "160.153.129.20",
-    "folder": "nursingessayhelper.co.uk"
+  "academiccoursehelp.com": {
+    "host": "72.167.58.89",
+    "folder": "academiccoursehelp.com"
+  },
+  "assignmenteducators.co.uk": {
+    "host": "72.167.58.89",
+    "folder": "assignmenteducators.co.uk"
+  },
+  "academicclasshelpers.com": {
+    "host": "72.167.58.89",
+    "folder": "academicclasshelpers.com"
+  },
+  "lawessayhelp.uk": {
+    "host": "72.167.58.89",
+    "folder": "lawessayhelp.uk"
+  },
+  "lawcourseworkhelp.co.uk": {
+    "host": "72.167.58.89",
+    "folder": "lawcourseworkhelp.co.uk"
+  },
+  "lawassignmenthelps.co.uk": {
+    "host": "72.167.58.89",
+    "folder": "lawassignmenthelps.co.uk"
+  },
+  "lawassignmenthelp.uk": {
+    "host": "72.167.58.89",
+    "folder": "lawassignmenthelp.uk"
+  },
+  "embroideryartificer.com": {
+    "host": "72.167.58.89",
+    "folder": "embroideryartificer.com"
+  },
+  "edutweety.com": {
+    "host": "72.167.58.89",
+    "folder": "edutweety.com"
+  },
+  "contentproficiency.co.uk": {
+    "host": "72.167.58.89",
+    "folder": "contentproficiency.co.uk"
+  },
+  "classroomeducators.com": {
+    "host": "72.167.58.89",
+    "folder": "classroomeducators.com"
+  },
+  "phdclassprofessors.com": {
+    "host": "72.167.58.89",
+    "folder": "phdclassprofessors.com"
+  },
+  "nursingessayhelps.co.uk": {
+    "host": "72.167.58.89",
+    "folder": "nursingessayhelps.co.uk"
+  },
+  "nursingessayhelp.uk": {
+    "host": "72.167.58.89",
+    "folder": "nursingessayhelp.uk"
+  },
+  "nursingassignmentshelps.co.uk": {
+    "host": "72.167.58.89",
+    "folder": "nursingassignmentshelps.co.uk"
+  },
+  "nursingassignmentshelp.uk": {
+    "host": "72.167.58.89",
+    "folder": "nursingassignmentshelp.uk"
+  },
+  "nursingassignmenthelps.co.uk": {
+    "host": "72.167.58.89",
+    "folder": "nursingassignmenthelps.co.uk"
+  },
+  "writemypaperforme.co.uk": {
+    "host": "72.167.58.89",
+    "folder": "writemypaperforme.co.uk"
   }
 }
