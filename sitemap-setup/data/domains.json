@@ -22,13 +22,5 @@
   "academicsassociates.co.uk": {
     "host": "ftp.studentconsultancy.co.uk",
     "folder": "academicsassociates.co.uk"
-  },
-  "academicwritingreviews.co.uk": {
-    "host": "ftp.studentconsultancy.co.uk",
-    "folder": "academicwritingreviews.co.uk"
-  },
-  "accountingassignmenthelps.co.uk": {
-    "host": "ftp.studentconsultancy.co.uk",
-    "folder": "accountingassignmenthelps.co.uk"
   }
 }
