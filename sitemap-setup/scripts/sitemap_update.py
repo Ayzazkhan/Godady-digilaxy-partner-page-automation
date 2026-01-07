@@ -146,9 +146,38 @@ def main():
         ftp = FTP(config["host"], timeout=30)
         ftp.login(user, password)
         print("✅ Login successful")
-
-        ftp.cwd(config["folder"])
-        print(f"✅ Folder: {config['folder']}")
+        
+        # Check current directory
+        current_dir = ftp.pwd()
+        print(f"📂 Current directory: {current_dir}")
+        
+        # List available folders
+        try:
+            all_items = ftp.nlst()
+            folders = []
+            for item in all_items:
+                try:
+                    ftp.cwd(item)
+                    folders.append(item)
+                    ftp.cwd(current_dir)  # Go back
+                except:
+                    pass
+            print(f"📁 Available folders: {folders[:20]}")
+        except Exception as e:
+            print(f"⚠️  Could not list folders: {e}")
+        
+        # Try to change to domain folder
+        folder_to_try = config["folder"]
+        print(f"🔍 Trying folder: {folder_to_try}")
+        
+        try:
+            ftp.cwd(folder_to_try)
+            print(f"✅ Folder: {folder_to_try}")
+        except Exception as e:
+            print(f"❌ Cannot access folder '{folder_to_try}': {e}")
+            print(f"⚠️  Skipping {domain} - folder not found")
+            ftp.quit()
+            exit(0)
 
         files = ftp.nlst()
         sitemap_exists = "sitemap.xml" in files
