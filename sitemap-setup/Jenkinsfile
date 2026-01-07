@@ -1,1 +1,65 @@
+pipeline {
+  agent any
 
+  stages {
+    stage('Checkout') {
+      steps {
+        git credentialsId: 'github-access', 
+            url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git', 
+            branch: 'main'
+      }
+    }
+
+    stage('Update Sitemaps') {
+      steps {
+        script {
+          // Load domains from JSON
+          def domainsOutput = sh(
+            script: """
+              python3 - <<'PY'
+import json
+domains_data = json.load(open('sitemap-setup/data/domains.json'))
+for domain in domains_data:
+    print(domain)
+PY
+            """,
+            returnStdout: true
+          ).trim()
+          
+          def domains = domainsOutput.tokenize('\n')
+          echo "📋 Domains to process: ${domains}"
+
+          // Use single ROOT FTP credential for all domains
+          withCredentials([
+            usernamePassword(
+              credentialsId: 'all@studentconsultancy.co.uk', 
+              usernameVariable: 'FTP_USER', 
+              passwordVariable: 'FTP_PASS'
+            )
+          ]) {
+            // Process each domain with same credentials
+            for (d in domains) {
+              echo "🔹 Processing ${d}"
+              
+              sh """
+                export CURRENT_DOMAIN='${d}'
+                export FTP_USER=\${FTP_USER}
+                export FTP_PASS='\${FTP_PASS}'
+                python3 sitemap-setup/scripts/sitemap_update.py
+              """
+            }
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    success { 
+      echo "✅ All sitemaps updated successfully" 
+    }
+    failure { 
+      echo "❌ Sitemap update failed - check console output" 
+    }
+  }
+}
