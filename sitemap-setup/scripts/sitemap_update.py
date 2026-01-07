@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-import os
-import json
-import io
-from ftplib import FTP, error_perm
+import os, json, io
 from datetime import datetime
-import xml.etree.ElementTree as ET
+from ftplib import FTP, error_perm
+from bs4 import BeautifulSoup
 
 DOMAINS_FILE = "sitemap-setup/data/domains.json"
 
@@ -14,6 +12,7 @@ def format_lastmod():
 
 def create_url_entry(domain, path, priority="0.80"):
     """Create a new URL entry for sitemap"""
+    import xml.etree.ElementTree as ET
     url = ET.Element("url")
     
     loc = ET.SubElement(url, "loc")
@@ -30,6 +29,8 @@ def create_url_entry(domain, path, priority="0.80"):
 def update_sitemap(sitemap_content, domain):
     """Add partners and partners-1 entries to sitemap"""
     try:
+        import xml.etree.ElementTree as ET
+        
         # Parse XML
         root = ET.fromstring(sitemap_content)
         
@@ -104,52 +105,83 @@ def update_sitemap(sitemap_content, domain):
         traceback.print_exc()
         return None
 
-def handle_domain(domain, host, ftp_user, ftp_pass, folder):
+def handle_domain(domain, host, ftp_user, ftp_pass, folder, base_path=None):
     """Process sitemap for a single domain"""
     try:
         print(f"\n{'='*70}")
         print(f"🔹 Processing: {domain}")
         print(f"🌐 Host: {host}")
         print(f"👤 User: {ftp_user}")
+        if base_path:
+            print(f"📂 Base Path: {base_path}")
         print(f"📁 Domain Folder: {folder}")
         print(f"{'='*70}")
         
-        # Connect to FTP (ROOT account)
+        # Connect to FTP
         ftp = FTP(host, timeout=30)
         ftp.login(ftp_user, ftp_pass)
-        print("✅ FTP login successful (ROOT)")
+        print("✅ FTP login successful")
         
-        # Check root directory
-        root_dir = ftp.pwd()
-        print(f"📂 ROOT directory: {root_dir}")
+        # Check initial directory
+        initial_dir = ftp.pwd()
+        print(f"📂 Initial directory: {initial_dir}")
         
-        # List folders in root
-        root_items = ftp.nlst()
-        print(f"📁 Items in root: {root_items[:10]}...")
+        # Navigate to base path if provided
+        if base_path:
+            try:
+                ftp.cwd(base_path)
+                print(f"✅ Navigated to base path: {base_path}")
+            except Exception as e:
+                print(f"⚠️  Cannot navigate to base path: {base_path}")
+                print(f"   Error: {e}")
+                print(f"   Skipping this domain...")
+                ftp.quit()
+                return "skipped"
+        
+        # Check current directory
+        current_dir = ftp.pwd()
+        print(f"📂 Current directory: {current_dir}")
+        
+        # List folders in current directory
+        try:
+            items = ftp.nlst()
+            print(f"📁 Items in directory ({len(items)} total): {items[:10]}...")
+        except Exception as e:
+            print(f"⚠️  Cannot list directory: {e}")
+            print(f"   Skipping this domain...")
+            ftp.quit()
+            return "skipped"
         
         # Navigate to domain folder
-        if folder not in root_items:
-            print(f"❌ Folder '{folder}' not found in root!")
-            print(f"   Available folders: {root_items}")
+        if folder not in items:
+            print(f"⚠️  Folder '{folder}' not found in {current_dir}!")
+            print(f"   Skipping this domain...")
             ftp.quit()
-            return False
+            return "skipped"
         
         # Change to domain folder
         ftp.cwd(folder)
-        current_dir = ftp.pwd()
-        print(f"✅ Changed to: {current_dir}")
+        domain_dir = ftp.pwd()
+        print(f"✅ Changed to: {domain_dir}")
         
         # List files in domain folder
-        files = ftp.nlst()
-        print(f"📁 Files in {folder}: {files[:10]}...")
+        try:
+            files = ftp.nlst()
+            print(f"📁 Files in {folder} ({len(files)} total): {files[:10]}...")
+        except Exception as e:
+            print(f"⚠️  Cannot list domain folder: {e}")
+            print(f"   Skipping this domain...")
+            ftp.quit()
+            return "skipped"
         
         sitemap_file = "sitemap.xml"
         backup_file = "backup-sitemap.xml"
         
         if sitemap_file not in files:
-            print(f"❌ {sitemap_file} not found in {folder}!")
+            print(f"⚠️  {sitemap_file} not found in {folder}!")
+            print(f"   Skipping this domain...")
             ftp.quit()
-            return False
+            return "skipped"
         
         # Download sitemap.xml
         bio = io.BytesIO()
@@ -172,7 +204,7 @@ def handle_domain(domain, host, ftp_user, ftp_pass, folder):
         if updated_sitemap is None:
             print("⚠️  No changes needed or update failed")
             ftp.quit()
-            return True  # Not a failure if entries already exist
+            return "no_change"
         
         # Upload updated sitemap
         updated_bytes = io.BytesIO(updated_sitemap.encode("utf-8"))
@@ -181,14 +213,15 @@ def handle_domain(domain, host, ftp_user, ftp_pass, folder):
         
         ftp.quit()
         print(f"🎉 COMPLETED: {domain}")
-        return True
+        return "success"
         
     except Exception as e:
         print(f"❌ ERROR processing {domain}")
         print(f"   {type(e).__name__}: {str(e)}")
+        print(f"   Skipping this domain and continuing...")
         import traceback
         traceback.print_exc()
-        return False
+        return "failed"
 
 def main():
     # Get environment variables from Jenkins
@@ -211,22 +244,40 @@ def main():
         print(f"❌ {current_domain} not found in {DOMAINS_FILE}")
         exit(1)
     
-    # Get host and folder for this domain
-    host = domains_obj[current_domain].get("host")
-    folder = domains_obj[current_domain].get("folder", current_domain)
+    # Get configuration for this domain
+    config = domains_obj[current_domain]
+    host = config.get("host")
+    folder = config.get("folder", current_domain)
+    base_path = config.get("base_path")  # Optional
     
     if not host:
         print(f"❌ Host not defined for {current_domain}")
         exit(1)
     
     # Process the domain
-    success = handle_domain(current_domain, host, ftp_user, ftp_pass, folder)
-    
-    if not success:
-        exit(1)
+    result = handle_domain(current_domain, host, ftp_user, ftp_pass, folder, base_path)
     
     print("\n" + "="*70)
-    print("✅ Sitemap update process completed")
+    print("📊 PROCESSING RESULT:")
+    print("="*70)
+    
+    if result == "success":
+        print(f"✅ SUCCESS: {current_domain}")
+        print("   Sitemap updated with new entries")
+        exit(0)
+    elif result == "no_change":
+        print(f"⚠️  NO CHANGE: {current_domain}")
+        print("   Entries already exist, no update needed")
+        exit(0)
+    elif result == "skipped":
+        print(f"⚠️  SKIPPED: {current_domain}")
+        print("   Folder or sitemap not found")
+        exit(0)
+    else:  # failed
+        print(f"❌ FAILED: {current_domain}")
+        print("   Error occurred during processing")
+        exit(0)
+    
     print("="*70)
 
 if __name__ == "__main__":
