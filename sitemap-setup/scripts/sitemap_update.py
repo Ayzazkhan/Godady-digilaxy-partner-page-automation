@@ -229,12 +229,26 @@ def main():
     ftp_user = os.environ.get("FTP_USER")
     ftp_pass = os.environ.get("FTP_PASS")
     
-    if not current_domain or not ftp_user or not ftp_pass:
-        print("❌ Missing environment variables:")
-        print(f"   CURRENT_DOMAIN: {current_domain}")
-        print(f"   FTP_USER: {ftp_user}")
-        print(f"   FTP_PASS: {'***' if ftp_pass else 'None'}")
+    # TEMPORARY: Hardcoded credentials for testing
+    # TODO: Remove after Jenkins credential issue is fixed
+    if not ftp_user or ftp_user == "${FTP_USER}":
+        ftp_user = "all@studentconsultancy.co.uk"
+        print("⚠️  Using hardcoded username (Jenkins credential not passed)")
+    
+    if not ftp_pass or ftp_pass == "${FTP_PASS}":
+        ftp_pass = "A4tech@1234"
+        print("⚠️  Using hardcoded password (Jenkins credential not passed)")
+    
+    if not current_domain:
+        print("❌ Missing CURRENT_DOMAIN environment variable")
         exit(1)
+    
+    print("\n" + "="*70)
+    print("🔐 CREDENTIAL CHECK:")
+    print("="*70)
+    print(f"Username: {ftp_user}")
+    print(f"Password: {'*' * len(ftp_pass) if ftp_pass else 'None'}")
+    print("="*70 + "\n")
     
     # Load domains configuration
     with open(DOMAINS_FILE, "r", encoding="utf-8") as f:
