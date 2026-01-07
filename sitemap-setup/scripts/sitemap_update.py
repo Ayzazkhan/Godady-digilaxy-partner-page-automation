@@ -38,6 +38,7 @@ def create_new_sitemap(domain, ftp):
         ET.SubElement(home_url, 'loc').text = f"https://{domain}/"
         ET.SubElement(home_url, 'lastmod').text = timestamp
         ET.SubElement(home_url, 'priority').text = "1.00"
+        print(f"✅ Added homepage: https://{domain}/")
         
         # Add found pages
         for page in pages:
@@ -54,23 +55,28 @@ def create_new_sitemap(domain, ftp):
             ET.SubElement(url_elem, 'lastmod').text = timestamp
             ET.SubElement(url_elem, 'priority').text = "0.80"
         
-        # Add partners pages
+        print(f"✅ Added {len(pages)} site pages")
+        
+        # Add partners page
         partners_url = ET.SubElement(urlset, 'url')
         ET.SubElement(partners_url, 'loc').text = f"https://{domain}/partners/"
         ET.SubElement(partners_url, 'lastmod').text = timestamp
         ET.SubElement(partners_url, 'priority').text = "0.80"
+        print(f"✅ Added partners page: https://{domain}/partners/")
         
+        # Add partners-1 page
         partners1_url = ET.SubElement(urlset, 'url')
         ET.SubElement(partners1_url, 'loc').text = f"https://{domain}/partners-1/"
         ET.SubElement(partners1_url, 'lastmod').text = timestamp
         ET.SubElement(partners1_url, 'priority').text = "0.80"
+        print(f"✅ Added partners-1 page: https://{domain}/partners-1/")
         
         # Convert to string
         xml_str = ET.tostring(urlset, encoding='unicode', method='xml')
         sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n' + xml_str
         
         total_urls = len(urlset.findall('url'))
-        print(f"✨ Generated sitemap with {total_urls} URLs")
+        print(f"✨ Generated sitemap with {total_urls} URLs total")
         
         return sitemap
         
@@ -97,6 +103,7 @@ def create_new_sitemap(domain, ftp):
     <priority>0.80</priority>
   </url>
 </urlset>'''
+        print(f"✅ Created basic sitemap with homepage, partners/ and partners-1/")
         return sitemap
 
 def update_sitemap(content, domain):
@@ -143,10 +150,10 @@ def update_sitemap(content, domain):
         
         # Add fresh entries
         root.insert(pos, make_entry("partners/"))
-        print(f"✨ Added {p1}")
+        print(f"✅ Added partners: {p1}")
         
         root.insert(pos + 1, make_entry("partners-1/"))
-        print(f"✨ Added {p2}")
+        print(f"✅ Added partners-1: {p2}")
         
         return '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(root, encoding='unicode')
     except Exception as e:
@@ -188,15 +195,15 @@ def main():
         
         if not sitemap_exists:
             print("⚠️  sitemap.xml not found")
-            print("🔧 Creating new sitemap.xml...")
+            print("🔧 Generating new sitemap.xml...")
             
             # Create new sitemap by scanning folder
             new_sitemap = create_new_sitemap(domain, ftp)
             
             # Upload new sitemap
             ftp.storbinary("STOR sitemap.xml", io.BytesIO(new_sitemap.encode()))
-            print("✨ Created and uploaded new sitemap.xml")
-            print("🎉 SUCCESS")
+            print("✅ Uploaded new sitemap.xml")
+            print("🎉 SUCCESS - New sitemap created with partners/ and partners-1/")
             
             ftp.quit()
             exit(0)
@@ -222,7 +229,7 @@ def main():
         print("✅ Upload")
         
         ftp.quit()
-        print("🎉 SUCCESS")
+        print("🎉 SUCCESS - Updated with partners/ and partners-1/")
         
     except Exception as e:
         print(f"❌ {e}")
