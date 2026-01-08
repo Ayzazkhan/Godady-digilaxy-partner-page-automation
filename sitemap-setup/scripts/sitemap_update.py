@@ -151,12 +151,12 @@ def update_sitemap(content, domain):
 
 def main():
     domain = os.environ.get("CURRENT_DOMAIN")
-    user = os.environ.get("FTP_USER", "all@logodesigners.us")
+    user = os.environ.get("FTP_USER", "all@63u.9b4.mytemp.website")
     password = os.environ.get("FTP_PASS", "A4tech@1234")
     
     # Hardcoded fallback
     if user == "${FTP_USER}":
-        user = "all@logodesigners.us"
+        user = "all@63u.9b4.mytemp.website"
     if password == "${FTP_PASS}":
         password = "A4tech@1234"
 
@@ -205,14 +205,60 @@ def main():
         folder_to_try = config["folder"]
         print(f"🔍 Trying folder: {folder_to_try}")
         
+        folder_found = False
+        final_folder = None
+        
+        # First attempt: Try direct folder access
         try:
             ftp.cwd(folder_to_try)
-            print(f"✅ Folder: {folder_to_try}")
+            print(f"✅ Found folder in current directory: {folder_to_try}")
+            folder_found = True
+            final_folder = folder_to_try
         except Exception as e:
-            print(f"❌ Cannot access folder '{folder_to_try}': {e}")
-            print(f"⚠️  Skipping {domain} - folder not found")
+            print(f"⚠️  Folder not found in current directory: {e}")
+            
+            # Second attempt: Try inside public_html
+            print(f"🔍 Searching in public_html folder...")
+            try:
+                ftp.cwd(current_dir)  # Go back to root
+                ftp.cwd("public_html")
+                print(f"✅ Entered public_html folder")
+                
+                # List folders inside public_html
+                try:
+                    public_html_items = ftp.nlst()
+                    public_html_folders = []
+                    for item in public_html_items:
+                        try:
+                            ftp.cwd(item)
+                            public_html_folders.append(item)
+                            ftp.cwd("..")  # Go back
+                        except:
+                            pass
+                    print(f"📁 Folders in public_html: {public_html_folders[:20]}")
+                except Exception as list_err:
+                    print(f"⚠️  Could not list public_html contents: {list_err}")
+                
+                # Try to access domain folder inside public_html
+                try:
+                    ftp.cwd(folder_to_try)
+                    print(f"✅ Found folder in public_html: {folder_to_try}")
+                    folder_found = True
+                    final_folder = f"public_html/{folder_to_try}"
+                except Exception as inner_err:
+                    print(f"⚠️  Folder not found in public_html: {inner_err}")
+                    
+            except Exception as public_html_err:
+                print(f"⚠️  Could not access public_html folder: {public_html_err}")
+        
+        # If folder not found in both places, skip domain
+        if not folder_found:
+            print(f"❌ Folder '{folder_to_try}' not found in current directory or public_html")
+            print(f"⚠️  Skipping {domain}")
             ftp.quit()
             exit(0)
+        
+        print(f"📂 Working in folder: {final_folder}")
 
         files = ftp.nlst()
         sitemap_exists = "sitemap.xml" in files
