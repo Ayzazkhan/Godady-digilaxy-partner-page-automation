@@ -28,7 +28,10 @@ PY
           
           def domains = domainsOutput.tokenize('\n')
           echo "📋 Domains to process: ${domains}"
-
+          
+          // Track results for summary
+          def results = [:]
+          
           // Use single ROOT FTP credential for all domains
           withCredentials([
             usernamePassword(
@@ -37,17 +40,158 @@ PY
               passwordVariable: 'FTP_PASS'
             )
           ]) {
-            // Process each domain with same credentials
+            // Process each domain
             for (d in domains) {
-              echo "🔹 Processing ${d}"
+              echo "\n🔹 Processing ${d}"
               
-              sh """
-                export CURRENT_DOMAIN='${d}'
-                export FTP_USER=\${FTP_USER}
-                export FTP_PASS='\${FTP_PASS}'
-                python3 sitemap-setup/scripts/sitemap_update.py
-              """
+              try {
+                def output = sh(
+                  script: """
+                    export CURRENT_DOMAIN='${d}'
+                    export FTP_USER=\${FTP_USER}
+                    export FTP_PASS='\${FTP_PASS}'
+                    python3 sitemap-setup/scripts/sitemap_update.py 2>&1
+                  """,
+                  returnStdout: true
+                ).trim()
+                
+                // Store output for summary
+                results[d] = [status: 'success', output: output]
+                echo output
+                
+              } catch (Exception e) {
+                results[d] = [status: 'failed', error: e.message]
+                echo "❌ Error: ${e.message}"
+              }
             }
+          }
+          
+          // Generate final summary
+          echo "\n\n" + "="*70
+          echo "📊 FINAL SUMMARY - SITEMAP UPDATE RESULTS"
+          echo "="*70
+          
+          def stats = [
+            newSitemaps: [],
+            updatedWithBoth: [],
+            updatedWithOne: [],
+            noChanges: [],
+            skipped: [],
+            failed: []
+          ]
+          
+          results.each { domain, result ->
+            if (result.status == 'success') {
+              def output = result.output
+              
+              if (output.contains('New sitemap created')) {
+                stats.newSitemaps << [domain: domain, links: ['partners/', 'partners-1/']]
+              } else if (output.contains('Added missing partners')) {
+                def partnersAdded = output.contains('Added https://www.') && output.contains('/partners/')
+                def partners1Added = output.contains('Added https://www.') && output.contains('/partners-1/')
+                
+                def links = []
+                if (partnersAdded) links << 'partners/'
+                if (partners1Added) links << 'partners-1/'
+                
+                if (links.size() == 2) {
+                  stats.updatedWithBoth << [domain: domain, links: links]
+                } else {
+                  stats.updatedWithOne << [domain: domain, links: links]
+                }
+              } else if (output.contains('No changes needed') || output.contains('already exist')) {
+                stats.noChanges << domain
+              } else if (output.contains('Skipping') || output.contains('folder not found')) {
+                stats.skipped << domain
+              }
+            } else {
+              stats.failed << [domain: domain, error: result.error]
+            }
+          }
+          
+          // Print detailed results
+          if (stats.newSitemaps.size() > 0) {
+            echo "\n🆕 NEW SITEMAPS CREATED (${stats.newSitemaps.size()}):"
+            echo "─".multiply(70)
+            stats.newSitemaps.each { item ->
+              echo "  ✅ ${item.domain}"
+              echo "     ├─ Sitemap: Created from scratch"
+              echo "     └─ Added links: ${item.links.join(', ')}"
+            }
+          }
+          
+          if (stats.updatedWithBoth.size() > 0) {
+            echo "\n✏️  SITEMAPS UPDATED - BOTH LINKS ADDED (${stats.updatedWithBoth.size()}):"
+            echo "─".multiply(70)
+            stats.updatedWithBoth.each { item ->
+              echo "  ✅ ${item.domain}"
+              echo "     ├─ Sitemap: Already existed"
+              echo "     └─ Added links: ${item.links.join(', ')}"
+            }
+          }
+          
+          if (stats.updatedWithOne.size() > 0) {
+            echo "\n✏️  SITEMAPS UPDATED - ONE LINK ADDED (${stats.updatedWithOne.size()}):"
+            echo "─".multiply(70)
+            stats.updatedWithOne.each { item ->
+              echo "  ✅ ${item.domain}"
+              echo "     ├─ Sitemap: Already existed"
+              echo "     └─ Added link: ${item.links.join(', ')}"
+            }
+          }
+          
+          if (stats.noChanges.size() > 0) {
+            echo "\n⚠️  NO CHANGES NEEDED (${stats.noChanges.size()}):"
+            echo "─".multiply(70)
+            stats.noChanges.each { domain ->
+              echo "  ⚠️  ${domain} - Both partners links already exist"
+            }
+          }
+          
+          if (stats.skipped.size() > 0) {
+            echo "\n⏭️  FOLDER NOT FOUND - SKIPPED (${stats.skipped.size()}):"
+            echo "─".multiply(70)
+            stats.skipped.each { domain ->
+              echo "  ❌ ${domain}"
+              echo "     └─ Reason: Folder not found on FTP server"
+            }
+            echo ""
+            echo "  💡 Action needed: Check folder names in domains.json"
+            echo "     Run: python3 discover_folders.py to find correct names"
+          }
+          
+          if (stats.failed.size() > 0) {
+            echo "\n❌ FAILED (${stats.failed.size()}):"
+            echo "─".multiply(70)
+            stats.failed.each { item ->
+              echo "  ❌ ${item.domain} - Error: ${item.error}"
+            }
+          }
+          
+          // Final statistics
+          echo "\n" + "="*70
+          echo "📈 FINAL STATISTICS"
+          echo "="*70
+          echo "Total Domains: ${domains.size()}"
+          echo ""
+          echo "✅ Successfully Processed: ${stats.newSitemaps.size() + stats.updatedWithBoth.size() + stats.updatedWithOne.size()}"
+          echo "   ├─ New Sitemaps: ${stats.newSitemaps.size()}"
+          echo "   ├─ Updated (both links): ${stats.updatedWithBoth.size()}"
+          echo "   └─ Updated (one link): ${stats.updatedWithOne.size()}"
+          echo ""
+          echo "⚠️  No Action Taken: ${stats.noChanges.size() + stats.skipped.size()}"
+          echo "   ├─ Already had links: ${stats.noChanges.size()}"
+          echo "   └─ Folder not found: ${stats.skipped.size()}"
+          echo ""
+          echo "❌ Failed: ${stats.failed.size()}"
+          echo "="*70
+          
+          // Summary message
+          def totalSuccess = stats.newSitemaps.size() + stats.updatedWithBoth.size() + stats.updatedWithOne.size()
+          if (totalSuccess == domains.size()) {
+            echo "\n🎉 ALL DOMAINS PROCESSED SUCCESSFULLY!"
+          } else if (totalSuccess > 0) {
+            echo "\n✅ Processed ${totalSuccess}/${domains.size()} domains successfully"
           }
         }
       }
@@ -56,10 +200,10 @@ PY
 
   post {
     success { 
-      echo "✅ All sitemaps updated successfully" 
+      echo "\n✅ Pipeline completed successfully" 
     }
     failure { 
-      echo "❌ Sitemap update failed - check console output" 
+      echo "\n❌ Pipeline failed - check console output above" 
     }
   }
 }
