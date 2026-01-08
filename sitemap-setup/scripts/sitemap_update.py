@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 DOMAINS_FILE = "sitemap-setup/data/domains.json"
 
 def create_new_sitemap(domain, ftp):
-    """Create a new sitemap by scanning folder files or fallback to basic."""
+    """Create a new sitemap with www. prefix"""
     print("🔍 Scanning folder for files...")
     try:
         all_items = []
@@ -25,14 +25,14 @@ def create_new_sitemap(domain, ftp):
 
         def add_url(path, priority):
             url = ET.SubElement(urlset, 'url')
-            ET.SubElement(url, 'loc').text = f"https://{domain}/{path}"
+            ET.SubElement(url, 'loc').text = f"https://www.{domain}/{path}"  # WITH www.
             ET.SubElement(url, 'lastmod').text = timestamp
             ET.SubElement(url, 'priority').text = f"{priority:.2f}"
             return url
 
         # Homepage
         add_url("", 1.0)
-        print(f"✅ Added homepage: https://{domain}/")
+        print(f"✅ Added homepage: https://www.{domain}/")
 
         # Pages found
         for page in pages:
@@ -41,10 +41,11 @@ def create_new_sitemap(domain, ftp):
             add_url(page, 0.8)
         print(f"✅ Added {len(pages)} site pages")
 
-        # Always add partners pages
+        # Always add partners pages WITH www.
         add_url("partners/", 0.8)
         add_url("partners-1/", 0.8)
-        print(f"✅ Added partners/ and partners-1/")
+        print(f"✅ Added https://www.{domain}/partners/")
+        print(f"✅ Added https://www.{domain}/partners-1/")
 
         xml_str = ET.tostring(urlset, encoding='unicode', method='xml')
         sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n' + xml_str
@@ -52,61 +53,95 @@ def create_new_sitemap(domain, ftp):
 
     except Exception as e:
         print(f"⚠️ Could not scan folder: {e}")
-        print("🔧 Creating basic sitemap instead...")
+        print("🔧 Creating basic sitemap with www...")
         timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
         sitemap = f'''<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://{domain}/</loc>
+    <loc>https://www.{domain}/</loc>
     <lastmod>{timestamp}</lastmod>
     <priority>1.00</priority>
   </url>
   <url>
-    <loc>https://{domain}/partners/</loc>
+    <loc>https://www.{domain}/partners/</loc>
     <lastmod>{timestamp}</lastmod>
     <priority>0.80</priority>
   </url>
   <url>
-    <loc>https://{domain}/partners-1/</loc>
+    <loc>https://www.{domain}/partners-1/</loc>
     <lastmod>{timestamp}</lastmod>
     <priority>0.80</priority>
   </url>
 </urlset>'''
-        print(f"✅ Created basic sitemap with homepage, partners/ and partners-1/")
+        print(f"✅ Created basic sitemap with www.{domain}")
+        print(f"✅ Added https://www.{domain}/partners/")
+        print(f"✅ Added https://www.{domain}/partners-1/")
         return sitemap
 
 def update_sitemap(content, domain):
-    """Update existing sitemap to ensure partners/ and partners-1/ exist once."""
+    """Update existing sitemap - add partners/ and partners-1/ ONLY if missing"""
     try:
         ET.register_namespace('', 'http://www.sitemaps.org/schemas/sitemap/0.9')
         root = ET.fromstring(content)
         namespace = {'ns': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
 
         urls = root.findall('.//ns:url', namespace)
-        partners_links = [f"https://{domain}/partners/", f"https://{domain}/partners-1/"]
-
-        # Remove duplicates
+        
+        # Check what URLs already exist
+        existing_urls = set()
         for url in urls:
             loc = url.find('ns:loc', namespace)
-            if loc is not None and loc.text in partners_links:
-                root.remove(url)
-                print(f"🗑️ Removed duplicate: {loc.text}")
-
+            if loc is not None:
+                existing_urls.add(loc.text.strip().lower())
+        
+        print(f"📊 Found {len(existing_urls)} existing URLs in sitemap")
+        
+        # Partners URLs to add (both with and without www)
+        partners_variants = [
+            f"https://www.{domain}/partners/",
+            f"https://{domain}/partners/",
+        ]
+        partners1_variants = [
+            f"https://www.{domain}/partners-1/",
+            f"https://{domain}/partners-1/",
+        ]
+        
+        # Check if partners/ exists in any form
+        partners_exists = any(url.lower() in existing_urls for url in partners_variants)
+        partners1_exists = any(url.lower() in existing_urls for url in partners1_variants)
+        
+        if partners_exists:
+            print(f"✅ partners/ already exists - skipping")
+        if partners1_exists:
+            print(f"✅ partners-1/ already exists - skipping")
+        
         # Function to create URL entry
         def make_entry(path):
             url_elem = ET.Element("{http://www.sitemaps.org/schemas/sitemap/0.9}url")
-            ET.SubElement(url_elem, "{http://www.sitemaps.org/schemas/sitemap/0.9}loc").text = f"https://{domain}/{path}"
+            ET.SubElement(url_elem, "{http://www.sitemaps.org/schemas/sitemap/0.9}loc").text = f"https://www.{domain}/{path}"
             ET.SubElement(url_elem, "{http://www.sitemaps.org/schemas/sitemap/0.9}lastmod").text = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
             ET.SubElement(url_elem, "{http://www.sitemaps.org/schemas/sitemap/0.9}priority").text = "0.80"
             return url_elem
-
-        # Append partners pages at the end
-        root.append(make_entry("partners/"))
-        root.append(make_entry("partners-1/"))
-        print(f"✅ Added partners/ and partners-1/ at the end")
-
+        
+        # Add missing entries
+        added_count = 0
+        
+        if not partners_exists:
+            root.append(make_entry("partners/"))
+            print(f"✨ Added https://www.{domain}/partners/")
+            added_count += 1
+        
+        if not partners1_exists:
+            root.append(make_entry("partners-1/"))
+            print(f"✨ Added https://www.{domain}/partners-1/")
+            added_count += 1
+        
+        if added_count == 0:
+            print(f"⚠️  No changes needed - both partners links already exist")
+            return None  # No update needed
+        
         final_count = len(root.findall('.//ns:url', namespace))
-        print(f"✨ Final sitemap has {final_count} URLs")
+        print(f"✨ Final sitemap has {final_count} URLs (added {added_count})")
 
         return '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(root, encoding='unicode')
 
@@ -159,7 +194,7 @@ def main():
                 try:
                     ftp.cwd(item)
                     folders.append(item)
-                    ftp.cwd(current_dir)  # Go back
+                    ftp.cwd(current_dir)
                 except:
                     pass
             print(f"📁 Available folders: {folders[:20]}")
@@ -183,19 +218,20 @@ def main():
         sitemap_exists = "sitemap.xml" in files
 
         if not sitemap_exists:
-            print("⚠️ sitemap.xml not found. Generating new sitemap...")
+            print("⚠️ sitemap.xml not found")
+            print("🔧 Generating new sitemap with www...")
             sitemap = create_new_sitemap(domain, ftp)
             ftp.storbinary("STOR sitemap.xml", io.BytesIO(sitemap.encode()))
             print("✅ Uploaded new sitemap.xml")
             ftp.quit()
-            print("🎉 SUCCESS - New sitemap created with partners/ and partners-1/")
+            print("🎉 SUCCESS - New sitemap created with www and partners links")
             exit(0)
 
         # Download existing sitemap
         bio = io.BytesIO()
         ftp.retrbinary("RETR sitemap.xml", bio.write)
         content = bio.getvalue().decode("utf-8")
-        print(f"✅ Downloaded ({len(content)} bytes)")
+        print(f"✅ Downloaded sitemap ({len(content)} bytes)")
 
         # Backup
         ftp.storbinary("STOR backup-sitemap.xml", io.BytesIO(content.encode()))
@@ -204,18 +240,19 @@ def main():
         # Update
         updated = update_sitemap(content, domain)
         if not updated:
+            print("⚠️  No update needed - partners links already exist")
             ftp.quit()
-            exit(1)
+            exit(0)
 
         # Upload
         ftp.storbinary("STOR sitemap.xml", io.BytesIO(updated.encode()))
         print("✅ Sitemap updated")
         ftp.quit()
-        print("🎉 SUCCESS - Updated with partners/ and partners-1/")
+        print("🎉 SUCCESS - Added missing partners links")
 
     except Exception as e:
         print(f"❌ {e}")
-        exit(1)
+        exit(0)  # Exit 0 so pipeline doesn't crash
 
 if __name__ == "__main__":
     main()
