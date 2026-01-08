@@ -151,12 +151,12 @@ def update_sitemap(content, domain):
 
 def main():
     domain = os.environ.get("CURRENT_DOMAIN")
-    user = os.environ.get("FTP_USER", "all@63u.9b4.mytemp.website")
+    user = os.environ.get("FTP_USER", "all@studentconsultancy.co.uk")
     password = os.environ.get("FTP_PASS", "A4tech@1234")
     
     # Hardcoded fallback
     if user == "${FTP_USER}":
-        user = "all@63u.9b4.mytemp.website"
+        user = "all@studentconsultancy.co.uk"
     if password == "${FTP_PASS}":
         password = "A4tech@1234"
 
