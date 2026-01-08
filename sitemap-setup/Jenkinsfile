@@ -35,7 +35,7 @@ PY
           // Use single ROOT FTP credential for all domains
           withCredentials([
             usernamePassword(
-              credentialsId: 'all@studentconsultancy.co.uk', 
+              credentialsId: 'all@nursingassignmenthelps.co.uk', 
               usernameVariable: 'FTP_USER', 
               passwordVariable: 'FTP_PASS'
             )
