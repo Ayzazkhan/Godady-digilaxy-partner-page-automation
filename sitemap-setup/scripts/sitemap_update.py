@@ -156,7 +156,7 @@ def main():
     
     # Hardcoded fallback
     if user == "${FTP_USER}":
-        user = "all@digilaxy.pk.63u.9b4.mytemp.website"
+        user = ""
     if password == "${FTP_PASS}":
         password = "A4tech@1234"
 
