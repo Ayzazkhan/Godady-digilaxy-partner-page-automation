@@ -35,7 +35,7 @@ PY
           // Use single ROOT FTP credential for all domains
           withCredentials([
             usernamePassword(
-              credentialsId: 'all@digilaxy.pk.63u.9b4.mytemp.website', 
+              credentialsId: '', 
               usernameVariable: 'FTP_USER', 
               passwordVariable: 'FTP_PASS'
             )
