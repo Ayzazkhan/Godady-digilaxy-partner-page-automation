@@ -1,42 +1,13 @@
-pipeline {
-  agent any
+<div bis_skin_checked="1" class="p-3 col-12 col-md-6 col-lg-3">
+<div bis_skin_checked="1" class="client-wrapper pt-5">
+<div bis_skin_checked="1" class="wrap-img">
 
-  stages {
-    stage('Checkout') {
-      steps {
-        git credentialsId: 'github-access', url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git', branch: 'main'
-      }
-    }
+<img class="img-responsive clients-img" src="partners-logo/lawessaypros-logo.jpg" style="width: 100px;" >
 
-
-
-    stage('Process domains') {
-      steps {
-        script {
-          // get domains list from file using python to avoid needing jq/plugin
-          def domainsOutput = sh(script: "python3 - <<'PY'\nimport json\nprint('\\n'.join(list(json.load(open('data/domains.json')).keys())))\nPY", returnStdout: true).trim()
-          def domains = domainsOutput.tokenize('\n')
-          echo "Domains to process: ${domains}"
-
-          for (d in domains) {
-            def credId = "ftp-${d}"
-            echo "Processing ${d} with credential id ${credId}"
-            withCredentials([usernamePassword(credentialsId: credId, usernameVariable: 'FTP_USER', passwordVariable: 'FTP_PASS')]) {
-              sh """
-                export CURRENT_DOMAIN=${d}
-                export FTP_USER=${FTP_USER}
-                export FTP_PASS='${FTP_PASS}'
-                python3 scripts/sftp_modify_inject.py
-              """
-            }
-          }
-        }
-      }
-    }
-  }
-
-  post {
-    success { echo "✅ All domains processed" }
-    failure { echo "❌ Some error occurred — check console" }
-  }
-}
+</div>
+<div bis_skin_checked="1" class="card-box">
+<a href="https://www.lawessaypros.co.uk/services/law-assignments">www.lawessaypros.co.uk/services/law-assignments</a>
+<p style="font-size: 12px; padding-top: 5px; margin-bottom: 0px;">{{content}}</p>
+</div>
+</div>
+</div>
