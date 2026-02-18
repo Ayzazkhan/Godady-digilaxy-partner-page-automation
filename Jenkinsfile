@@ -20,7 +20,6 @@ pipeline {
       steps {
         script {
 
-          // Load domains + hosts from domains.json
           def rawOutput = sh(
             script: """
               python3 - <<'PY'
@@ -35,26 +34,19 @@ PY
 
           echo "📊 Total domains: ${rawOutput.size()}"
 
-          // Build parallel tasks map
           def parallelTasks = [:]
-          def successList   = [].asSynchronized()
-          def failedList    = [].asSynchronized()
+          def results = [:]   // ✅ plain map to collect pass/fail
 
           for (line in rawOutput) {
-            def parts        = line.split("\\|")
-            def domain       = parts[0].trim()
-            def host         = parts[1].trim()
-            def credentialId = "ftp-${domain}"
-            def ftpUsername  = "partners@${domain}"
-
-            // Capture for closure
+            def parts  = line.split("\\|")
+            def domain = parts[0].trim()
+            def host   = parts[1].trim()
             def d = domain
             def h = host
-            def c = credentialId
-            def u = ftpUsername
+            def c = "ftp-${domain}"
+            def u = "partners@${domain}"
 
             parallelTasks[d] = {
-              echo "▶ Starting: ${d}"
               try {
                 withCredentials([
                   usernamePassword(
@@ -71,29 +63,31 @@ PY
                     python3 scripts/sftp_modify_inject.py
                   """
                 }
-                successList.add(d)
+                results[d] = 'SUCCESS'
                 echo "✅ DONE: ${d}"
               } catch (err) {
+                results[d] = 'FAILED'
                 echo "❌ FAILED: ${d} — ${err.getMessage()}"
-                failedList.add(d)
-                // No crash — continue other domains
               }
             }
           }
 
-          // Run all domains in parallel
+          // Run all in parallel
           parallel parallelTasks
 
-          // ── Final Summary ──────────────────────────────
+          // ── Summary ───────────────────────────────────
+          def successList = results.findAll { it.value == 'SUCCESS' }.keySet().sort()
+          def failedList  = results.findAll { it.value == 'FAILED'  }.keySet().sort()
+
           echo ""
           echo "════════════════════════════════════════════"
           echo "               FINAL SUMMARY                "
           echo "════════════════════════════════════════════"
           echo "✅ SUCCESS: ${successList.size()} domains"
-          successList.sort().each { echo "   ✔ ${it}" }
+          successList.each { echo "   ✔ ${it}" }
           echo ""
           echo "❌ FAILED: ${failedList.size()} domains"
-          failedList.sort().each { echo "   ✖ ${it}" }
+          failedList.each  { echo "   ✖ ${it}" }
           echo "════════════════════════════════════════════"
 
           if (failedList.size() > 0) {
@@ -107,7 +101,7 @@ PY
 
   post {
     success  { echo "🎉 All domains completed successfully" }
-    unstable { echo "⚠️ Completed with some failures — check summary above" }
+    unstable { echo "⚠️ Completed with failures — check summary above" }
     failure  { echo "❌ Pipeline failed — check console output" }
   }
 }
