@@ -1,0 +1,87 @@
+pipeline {
+  agent any
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+  }
+  stages {
+    stage('Checkout') {
+      steps {
+        git branch: 'main',
+            url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git',
+            credentialsId: 'github-access'
+      }
+    }
+
+    stage('Image Path Update') {
+      steps {
+        script {
+          def domainsData = sh(
+            script: """
+              python3 - <<'PY'
+import json
+data = json.load(open('image-path-update/data/domains.json'))
+for domain, info in data.items():
+    print(f"{domain}|{info['host']}")
+PY
+            """,
+            returnStdout: true
+          ).trim().split("\\n")
+
+          def success = []
+          def failed  = []
+
+          echo "📊 Total domains: ${domainsData.size()}"
+
+          for (line in domainsData) {
+            def parts  = line.split("\\|")
+            def domain = parts[0]
+            def host   = parts[1]
+            def credentialId = "partners-${domain}"
+            def ftpUsername  = "partners@${domain}"
+
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "📌 Domain: ${domain}"
+            echo "🌐 Host: ${host}"
+
+            try {
+              withCredentials([
+                usernamePassword(
+                  credentialsId: credentialId,
+                  usernameVariable: 'FTP_PASS_USERNAME',
+                  passwordVariable: 'FTP_PASS'
+                )
+              ]) {
+                sh """
+                  export CURRENT_DOMAIN='${domain}'
+                  export FTP_HOST='${host}'
+                  export FTP_USER='${ftpUsername}'
+                  export FTP_PASS=\$FTP_PASS
+                  python3 image-path-update/scripts/ftp_image_path_update.py
+                """
+              }
+              success.add(domain)
+              echo "✅ SUCCESS: ${domain}"
+            } catch (err) {
+              echo "❌ FAILED: ${domain} | ${err.getMessage()}"
+              failed.add(domain)
+            }
+          }
+
+          echo "=========================================="
+          echo "           FINAL SUMMARY"
+          echo "=========================================="
+          echo "✅ SUCCESS: ${success.size()} domains"
+          success.each { echo "  ✔ ${it}" }
+          echo "❌ FAILED: ${failed.size()} domains"
+          failed.each { echo "  ✖ ${it}" }
+          echo "=========================================="
+
+          if (failed.size() > 0) {
+            currentBuild.result = 'UNSTABLE'
+          }
+        }
+      }
+    }
+  }
+}
