@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 import os, json, io
-from datetime import datetime
 from ftplib import FTP, error_perm
 from bs4 import BeautifulSoup
-import requests
 
 DOMAINS_FILE = "data/domains.json"
 CONTENTS_FILE = "data/contents.json"
@@ -13,109 +11,108 @@ def inject_into_html(original_html, snippet_html):
     soup = BeautifulSoup(original_html, "html.parser")
     row = soup.find("div", class_="row align-center justify-content-center")
     fragment = BeautifulSoup(snippet_html, "html.parser")
+
     if row:
         row.append(fragment)
+        print("[OK] Injected into row container")
     elif soup.body:
         soup.body.append(fragment)
+        print("[WARN] No row container found — appended to body")
     else:
-        soup.append(fragment)
+        print("[ERROR] No valid injection point found")
+        return original_html
+
     return str(soup)
 
 def handle(domain, host, ftp_user, ftp_pass, content):
-    print(f"\n🔹 Processing {domain} @ {host}")
+    print(f"\n{'='*55}")
+    print(f"🔹 Domain : {domain}")
+    print(f"🌐 Host   : {host}")
+    print(f"👤 User   : {ftp_user}")
+    print(f"{'='*55}")
+
     ftp = FTP(host, timeout=20)
     ftp.login(ftp_user, ftp_pass)
-    print("[OK] FTP login successful")
+    print("[OK] FTP connected")
 
     remote_file = "index.html"
-    ts = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-    backup_name = f"rollback.html"
-
-    try:
-        ftp.rename(remote_file, backup_name)
-        print(f"[OK] Backup created: {backup_name}")
-    except error_perm:
-        print("[INFO] No existing index.html to backup; will create new one")
-
-    # download base
+    backup_file = "rollback.html"
     bio = io.BytesIO()
-    base_html = ""
-    try:
-        ftp.retrbinary(f"RETR {backup_name}", bio.write)
-        print("[OK] Downloaded backup for modification")
-    except Exception:
-        try:
-            bio = io.BytesIO()
-            ftp.retrbinary(f"RETR {remote_file}", bio.write)
-            print("[OK] Downloaded current index.html")
-        except Exception:
-            print("[WARN] No index.html found — creating scaffold")
-            base_html = "<html><body><section id='clients'><div class='row align-center justify-content-center'></div></section></body></html>"
 
-    if not base_html:
+    # Download index.html
+    try:
+        ftp.retrbinary(f"RETR {remote_file}", bio.write)
         bio.seek(0)
         base_html = bio.read().decode("utf-8", errors="ignore")
+        print(f"[OK] Downloaded index.html ({len(base_html)} bytes)")
+    except Exception:
+        print("[ERROR] index.html not found on server")
+        ftp.quit()
+        return False
 
-    # template
+    # Backup
+    try:
+        ftp.storbinary(f"STOR {backup_file}", io.BytesIO(base_html.encode("utf-8")))
+        print(f"[OK] Backup saved as {backup_file}")
+    except Exception as e:
+        print(f"[WARN] Backup failed: {e}")
+
+    # Load template and inject content
     with open(TEMPLATE_FILE, "r", encoding="utf-8") as f:
-        snippet = f.read()
+        snippet = f.read().replace("{{content}}", content)
 
-    # replace placeholder with content chosen by Jenkins (content passed as arg)
-    snippet = snippet.replace("{{content}}", content)
-    print(f"[OK] Using content: {content}")
-
-    # inject & upload
     updated_html = inject_into_html(base_html, snippet)
-    updated_bytes = io.BytesIO(updated_html.encode("utf-8"))
-    ftp.storbinary(f"STOR {remote_file}", updated_bytes)
-    print(f"[OK] Uploaded new {remote_file} for {domain}")
+
+    if updated_html == base_html:
+        print("[ERROR] HTML unchanged — injection failed")
+        ftp.quit()
+        return False
+
+    # Upload
+    ftp.storbinary(f"STOR {remote_file}", io.BytesIO(updated_html.encode("utf-8")))
+    print(f"[OK] Uploaded index.html ({len(updated_html)} bytes)")
 
     ftp.quit()
-
-    # optional check
-    try:
-        url = f"https://{domain}/partners/index.html"
-        r = requests.get(url, timeout=8)
-        print(f"[CHECK] {url} -> {r.status_code}")
-    except Exception as e:
-        print(f"[WARN] HTTP validation failed: {e}")
+    print(f"[DONE] {domain}")
+    return True
 
 def main():
-    # Jenkins will set CURRENT_DOMAIN, FTP_USER, FTP_PASS
-    current = os.environ.get("CURRENT_DOMAIN")
+    domain   = os.environ.get("CURRENT_DOMAIN")
     ftp_user = os.environ.get("FTP_USER")
     ftp_pass = os.environ.get("FTP_PASS")
-    if not current or not ftp_user or not ftp_pass:
-        print("❌ Env vars CURRENT_DOMAIN, FTP_USER, FTP_PASS required")
-        return
 
-    # load domains (ordered)
+    if not all([domain, ftp_user, ftp_pass]):
+        print("❌ Missing: CURRENT_DOMAIN, FTP_USER, FTP_PASS")
+        exit(1)
+
     with open(DOMAINS_FILE, "r", encoding="utf-8") as f:
         domains_obj = json.load(f)
-    domains = list(domains_obj.keys())  # preserves order in modern Python
+    domains = list(domains_obj.keys())
 
-    if current not in domains:
-        print(f"❌ {current} not found in {DOMAINS_FILE}")
-        return
+    if domain not in domains:
+        print(f"❌ '{domain}' not found in domains.json")
+        exit(1)
 
-    # load contents (expects a list/array)
     with open(CONTENTS_FILE, "r", encoding="utf-8") as f:
         contents_list = json.load(f)
-        if not isinstance(contents_list, list) or len(contents_list) == 0:
-            print("❌ contents.json must be a non-empty JSON array")
-            return
 
-    # find index of current domain and pick content by index (cycle if needed)
-    idx = domains.index(current)
+    if not isinstance(contents_list, list) or not contents_list:
+        print("❌ contents.json must be a non-empty array")
+        exit(1)
+
+    idx     = domains.index(domain)
     content = contents_list[idx % len(contents_list)]
+    host    = domains_obj[domain].get("host")
 
-    # host from domains.json
-    host = domains_obj[current].get("host")
     if not host:
-        print(f"❌ Host not defined for {current} in {DOMAINS_FILE}")
-        return
+        print(f"❌ No host defined for {domain}")
+        exit(1)
 
-    handle(current, host, ftp_user, ftp_pass, content)
+    print(f"📝 Content index : {idx % len(contents_list)}")
+    print(f"📄 Preview       : {content[:80]}...")
+
+    success = handle(domain, host, ftp_user, ftp_pass, content)
+    exit(0 if success else 1)
 
 if __name__ == "__main__":
     main()
