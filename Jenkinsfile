@@ -34,9 +34,10 @@ PY
 
           echo "📊 Total domains: ${rawOutput.size()}"
 
-          def parallelTasks = [:]
-          def results       = [:]
+          def successList = []
+          def failedList  = []
 
+          // ✅ One by one — no parallel
           for (line in rawOutput) {
             def parts        = line.split("\\|")
             def domain       = parts[0].trim()
@@ -44,44 +45,38 @@ PY
             def credentialId = "ftp-${domain}"
             def ftpUsername  = "cicd@${domain}"
 
-            def d = domain
-            def h = host
-            def c = credentialId
-            def u = ftpUsername
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "▶ Processing : ${domain}"
+            echo "🌐 Host      : ${host}"
+            echo "🔐 Credential: ${credentialId}"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-            parallelTasks[d] = {
-              echo "▶ Starting: ${d}"
-              try {
-                withCredentials([
-                  usernamePassword(
-                    credentialsId: c,
-                    usernameVariable: 'FTP_USER',
-                    passwordVariable: 'FTP_PASS'
-                  )
-                ]) {
-                  sh """
-                    export CURRENT_DOMAIN='${d}'
-                    export FTP_HOST='${h}'
-                    export FTP_USER='${u}'
-                    export FTP_PASS=\$FTP_PASS
-                    python3 scripts/sftp_modify_inject.py
-                  """
-                }
-                results[d] = 'SUCCESS'
-              } catch (err) {
-                results[d] = 'FAILED'
-                echo "❌ FAILED: ${d} — ${err.getMessage()}"
+            try {
+              withCredentials([
+                usernamePassword(
+                  credentialsId: credentialId,
+                  usernameVariable: 'FTP_USER',
+                  passwordVariable: 'FTP_PASS'
+                )
+              ]) {
+                sh """
+                  export CURRENT_DOMAIN='${domain}'
+                  export FTP_HOST='${host}'
+                  export FTP_USER='${ftpUsername}'
+                  export FTP_PASS=\$FTP_PASS
+                  python3 scripts/sftp_modify_inject.py
+                """
               }
+              successList.add(domain)
+              echo "✅ DONE: ${domain}"
+            } catch (err) {
+              failedList.add(domain)
+              echo "❌ FAILED: ${domain} — ${err.getMessage()}"
+              // continues to next domain
             }
           }
 
-          // Run all domains in parallel
-          parallel parallelTasks
-
-          // ── Final Summary List ─────────────────────────
-          def successList = results.findAll { it.value == 'SUCCESS' }.keySet().sort()
-          def failedList  = results.findAll { it.value == 'FAILED'  }.keySet().sort()
-
+          // ── Final Summary ──────────────────────────────
           echo ""
           echo "════════════════════════════════════════════════════"
           echo "                   FINAL SUMMARY                    "
