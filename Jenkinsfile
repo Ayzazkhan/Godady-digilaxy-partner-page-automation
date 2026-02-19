@@ -38,12 +38,9 @@ PY
           def results       = [:]
 
           for (line in rawOutput) {
-            def parts  = line.split("\\|")
-            def domain = parts[0].trim()
-            def host   = parts[1].trim()
-
-            // ✅ Credential ID: ftp-domain.com
-            // ✅ FTP Username : cicd@domain.com
+            def parts        = line.split("\\|")
+            def domain       = parts[0].trim()
+            def host         = parts[1].trim()
             def credentialId = "ftp-${domain}"
             def ftpUsername  = "cicd@${domain}"
 
@@ -71,7 +68,6 @@ PY
                   """
                 }
                 results[d] = 'SUCCESS'
-                echo "✅ DONE: ${d}"
               } catch (err) {
                 results[d] = 'FAILED'
                 echo "❌ FAILED: ${d} — ${err.getMessage()}"
@@ -79,20 +75,25 @@ PY
             }
           }
 
+          // Run all domains in parallel
           parallel parallelTasks
 
+          // ── Final Summary List ─────────────────────────
           def successList = results.findAll { it.value == 'SUCCESS' }.keySet().sort()
           def failedList  = results.findAll { it.value == 'FAILED'  }.keySet().sort()
 
-          echo "════════════════════════════════════════════"
-          echo "               FINAL SUMMARY                "
-          echo "════════════════════════════════════════════"
-          echo "✅ SUCCESS: ${successList.size()} domains"
-          successList.each { echo "   ✔ ${it}" }
           echo ""
-          echo "❌ FAILED: ${failedList.size()} domains"
-          failedList.each  { echo "   ✖ ${it}" }
-          echo "════════════════════════════════════════════"
+          echo "════════════════════════════════════════════════════"
+          echo "                   FINAL SUMMARY                    "
+          echo "════════════════════════════════════════════════════"
+          echo "✅ SUCCESS — ${successList.size()} domains"
+          successList.each { d -> echo "   ✔  ${d}" }
+          echo ""
+          echo "❌ FAILED  — ${failedList.size()} domains"
+          failedList.each  { d -> echo "   ✖  ${d}" }
+          echo "════════════════════════════════════════════════════"
+          echo "📊 TOTAL: ${rawOutput.size()} | ✅ ${successList.size()} | ❌ ${failedList.size()}"
+          echo "════════════════════════════════════════════════════"
 
           if (failedList.size() > 0) {
             currentBuild.result = 'UNSTABLE'
