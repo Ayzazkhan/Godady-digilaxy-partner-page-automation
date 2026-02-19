@@ -42,8 +42,9 @@ PY
             def domain = parts[0].trim()
             def host   = parts[1].trim()
 
-            // ✅ Credential ID: cicd@domain.com
-            def credentialId = "cicd@${domain}"
+            // ✅ Credential ID: ftp-domain.com
+            // ✅ FTP Username : cicd@domain.com
+            def credentialId = "ftp-${domain}"
             def ftpUsername  = "cicd@${domain}"
 
             def d = domain
@@ -78,10 +79,8 @@ PY
             }
           }
 
-          // Run all in parallel
           parallel parallelTasks
 
-          // Summary
           def successList = results.findAll { it.value == 'SUCCESS' }.keySet().sort()
           def failedList  = results.findAll { it.value == 'FAILED'  }.keySet().sort()
 
