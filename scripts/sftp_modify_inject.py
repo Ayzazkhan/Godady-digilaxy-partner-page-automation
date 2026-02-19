@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 import os, json, io
-from ftplib import FTP, error_perm
+from ftplib import FTP
 from bs4 import BeautifulSoup
 
-DOMAINS_FILE = "data/domains.json"
+DOMAINS_FILE  = "data/domains.json"
 CONTENTS_FILE = "data/contents.json"
 TEMPLATE_FILE = "templates/partner_block_template.html"
 
+REMOTE_DIR    = "partners"
+REMOTE_FILE   = "index.html"
+BACKUP_FILE   = "rollback.html"
+
 def inject_into_html(original_html, snippet_html):
-    soup = BeautifulSoup(original_html, "html.parser")
-    row = soup.find("div", class_="row align-center justify-content-center")
+    soup     = BeautifulSoup(original_html, "html.parser")
+    row      = soup.find("div", class_="row align-center justify-content-center")
     fragment = BeautifulSoup(snippet_html, "html.parser")
 
     if row:
@@ -17,9 +21,9 @@ def inject_into_html(original_html, snippet_html):
         print("[OK] Injected into row container")
     elif soup.body:
         soup.body.append(fragment)
-        print("[WARN] No row container found — appended to body")
+        print("[WARN] No row container — appended to body")
     else:
-        print("[ERROR] No valid injection point found")
+        print("[ERROR] No valid injection point")
         return original_html
 
     return str(soup)
@@ -29,31 +33,39 @@ def handle(domain, host, ftp_user, ftp_pass, content):
     print(f"🔹 Domain : {domain}")
     print(f"🌐 Host   : {host}")
     print(f"👤 User   : {ftp_user}")
+    print(f"📁 Target : /{REMOTE_DIR}/{REMOTE_FILE}")
     print(f"{'='*55}")
 
     ftp = FTP(host, timeout=20)
     ftp.login(ftp_user, ftp_pass)
     print("[OK] FTP connected")
+    print(f"[OK] Current dir: {ftp.pwd()}")
 
-    remote_file = "index.html"
-    backup_file = "rollback.html"
-    bio = io.BytesIO()
+    # Navigate to /partners directory
+    try:
+        ftp.cwd(REMOTE_DIR)
+        print(f"[OK] Changed to /{REMOTE_DIR}")
+    except Exception as e:
+        print(f"[ERROR] Cannot access /{REMOTE_DIR} — {e}")
+        ftp.quit()
+        return False
 
     # Download index.html
+    bio = io.BytesIO()
     try:
-        ftp.retrbinary(f"RETR {remote_file}", bio.write)
+        ftp.retrbinary(f"RETR {REMOTE_FILE}", bio.write)
         bio.seek(0)
         base_html = bio.read().decode("utf-8", errors="ignore")
-        print(f"[OK] Downloaded index.html ({len(base_html)} bytes)")
+        print(f"[OK] Downloaded {REMOTE_FILE} ({len(base_html)} bytes)")
     except Exception:
-        print("[ERROR] index.html not found on server")
+        print(f"[ERROR] {REMOTE_FILE} not found in /{REMOTE_DIR}")
         ftp.quit()
         return False
 
     # Backup
     try:
-        ftp.storbinary(f"STOR {backup_file}", io.BytesIO(base_html.encode("utf-8")))
-        print(f"[OK] Backup saved as {backup_file}")
+        ftp.storbinary(f"STOR {BACKUP_FILE}", io.BytesIO(base_html.encode("utf-8")))
+        print(f"[OK] Backup saved as {BACKUP_FILE}")
     except Exception as e:
         print(f"[WARN] Backup failed: {e}")
 
@@ -69,8 +81,8 @@ def handle(domain, host, ftp_user, ftp_pass, content):
         return False
 
     # Upload
-    ftp.storbinary(f"STOR {remote_file}", io.BytesIO(updated_html.encode("utf-8")))
-    print(f"[OK] Uploaded index.html ({len(updated_html)} bytes)")
+    ftp.storbinary(f"STOR {REMOTE_FILE}", io.BytesIO(updated_html.encode("utf-8")))
+    print(f"[OK] Uploaded {REMOTE_FILE} ({len(updated_html)} bytes)")
 
     ftp.quit()
     print(f"[DONE] {domain}")
