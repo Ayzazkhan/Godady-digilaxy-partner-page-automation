@@ -7,9 +7,8 @@ DOMAINS_FILE  = "data/domains.json"
 CONTENTS_FILE = "data/contents.json"
 TEMPLATE_FILE = "templates/partner_block_template.html"
 
-REMOTE_DIR    = "partners"
-REMOTE_FILE   = "index.html"
-BACKUP_FILE   = "rollback.html"
+REMOTE_FILE = "index.html"
+BACKUP_FILE = "rollback.html"
 
 def inject_into_html(original_html, snippet_html):
     soup     = BeautifulSoup(original_html, "html.parser")
@@ -33,7 +32,7 @@ def handle(domain, host, ftp_user, ftp_pass, content):
     print(f"🔹 Domain : {domain}")
     print(f"🌐 Host   : {host}")
     print(f"👤 User   : {ftp_user}")
-    print(f"📁 Target : /{REMOTE_DIR}/{REMOTE_FILE}")
+    print(f"📁 Target : /{REMOTE_FILE}")
     print(f"{'='*55}")
 
     ftp = FTP(host, timeout=20)
@@ -41,16 +40,7 @@ def handle(domain, host, ftp_user, ftp_pass, content):
     print("[OK] FTP connected")
     print(f"[OK] Current dir: {ftp.pwd()}")
 
-    # Navigate to /partners directory
-    try:
-        ftp.cwd(REMOTE_DIR)
-        print(f"[OK] Changed to /{REMOTE_DIR}")
-    except Exception as e:
-        print(f"[ERROR] Cannot access /{REMOTE_DIR} — {e}")
-        ftp.quit()
-        return False
-
-    # Download index.html
+    # Download index.html directly from root
     bio = io.BytesIO()
     try:
         ftp.retrbinary(f"RETR {REMOTE_FILE}", bio.write)
@@ -58,7 +48,7 @@ def handle(domain, host, ftp_user, ftp_pass, content):
         base_html = bio.read().decode("utf-8", errors="ignore")
         print(f"[OK] Downloaded {REMOTE_FILE} ({len(base_html)} bytes)")
     except Exception:
-        print(f"[ERROR] {REMOTE_FILE} not found in /{REMOTE_DIR}")
+        print(f"[ERROR] {REMOTE_FILE} not found")
         ftp.quit()
         return False
 
