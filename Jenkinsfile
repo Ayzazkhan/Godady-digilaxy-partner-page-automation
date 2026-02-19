@@ -35,18 +35,24 @@ PY
           echo "📊 Total domains: ${rawOutput.size()}"
 
           def parallelTasks = [:]
-          def results = [:]   // ✅ plain map to collect pass/fail
+          def results       = [:]
 
           for (line in rawOutput) {
             def parts  = line.split("\\|")
             def domain = parts[0].trim()
             def host   = parts[1].trim()
+
+            // ✅ Credential ID: cicd@domain.com
+            def credentialId = "cicd@${domain}"
+            def ftpUsername  = "cicd@${domain}"
+
             def d = domain
             def h = host
-            def c = "ftp-${domain}"
-            def u = "partners@${domain}"
+            def c = credentialId
+            def u = ftpUsername
 
             parallelTasks[d] = {
+              echo "▶ Starting: ${d}"
               try {
                 withCredentials([
                   usernamePassword(
@@ -75,11 +81,10 @@ PY
           // Run all in parallel
           parallel parallelTasks
 
-          // ── Summary ───────────────────────────────────
+          // Summary
           def successList = results.findAll { it.value == 'SUCCESS' }.keySet().sort()
           def failedList  = results.findAll { it.value == 'FAILED'  }.keySet().sort()
 
-          echo ""
           echo "════════════════════════════════════════════"
           echo "               FINAL SUMMARY                "
           echo "════════════════════════════════════════════"
@@ -92,7 +97,6 @@ PY
 
           if (failedList.size() > 0) {
             currentBuild.result = 'UNSTABLE'
-            echo "⚠️ Build UNSTABLE — ${failedList.size()} domain(s) failed"
           }
         }
       }
@@ -102,6 +106,6 @@ PY
   post {
     success  { echo "🎉 All domains completed successfully" }
     unstable { echo "⚠️ Completed with failures — check summary above" }
-    failure  { echo "❌ Pipeline failed — check console output" }
+    failure  { echo "❌ Pipeline failed" }
   }
 }
