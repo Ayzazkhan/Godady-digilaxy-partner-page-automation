@@ -1,0 +1,124 @@
+pipeline {
+  agent any
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+  }
+
+  stages {
+    /* ==========================================
+       CHECKOUT REPOSITORY
+       ========================================== */
+    stage('Checkout') {
+      steps {
+        git branch: 'main',
+            url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git',
+            credentialsId: 'github-access'
+      }
+    }
+
+    /* ==========================================
+       ROLLBACK WORKFLOW:
+       1. Read domains from rollback-partners-1/data/domains.json
+       2. For each domain, connect via FTP
+       3. Swap: rollback.html <-> index.html (safe 3-step)
+       4. Continue to next domain (no crash on error)
+       5. Show final summary
+       ========================================== */
+    stage('Rollback') {
+      steps {
+        script {
+          // Load domains.json
+          def domainsData = sh(
+            script: """
+              python3 - <<'PY'
+import json
+data = json.load(open('rollback-partners-1/data/domains.json'))
+for domain, info in data.items():
+    print(f"{domain}|{info['host']}")
+PY
+            """,
+            returnStdout: true
+          ).trim().split("\\n")
+
+          def successList = []
+          def failedList  = []
+
+          echo "📊 Total domains to rollback: ${domainsData.size()}"
+
+          // Process each domain
+          for (line in domainsData) {
+            def parts        = line.split("\\|")
+            def domain       = parts[0]
+            def host         = parts[1]
+            def credentialId = "partners-${domain}"
+            def ftpUsername  = "partners@${domain}"
+
+            echo "\n${'='*60}"
+            echo "🔐 Credential : ${credentialId}"
+            echo "👤 FTP User   : ${ftpUsername}"
+            echo "🌐 FTP Host   : ${host}"
+            echo "📌 Domain     : ${domain}"
+            echo "${'='*60}"
+
+            try {
+              withCredentials([
+                usernamePassword(
+                  credentialsId: credentialId,
+                  usernameVariable: 'FTP_PASS_USERNAME',
+                  passwordVariable: 'FTP_PASS'
+                )
+              ]) {
+                sh """
+                  export CURRENT_DOMAIN='${domain}'
+                  export FTP_HOST='${host}'
+                  export FTP_USER='${ftpUsername}'
+                  export FTP_PASS=\$FTP_PASS
+                  python3 rollback-partners-1/scripts/ftp_rollback.py
+                """
+              }
+              successList.add(domain)
+              echo "✅ ROLLBACK SUCCESS: ${domain}"
+
+            } catch (err) {
+              echo "❌ ROLLBACK FAILED: ${domain}"
+              echo "   Error: ${err.getMessage()}"
+              failedList.add(domain)
+              // Continue with other domains
+            }
+          }
+
+          // Final summary
+          echo "\n\n"
+          echo "${'='*70}"
+          echo "                    ROLLBACK SUMMARY"
+          echo "${'='*70}"
+          echo "✅ SUCCESS : ${successList.size()} domains"
+          successList.each { echo "   ✔ ${it}" }
+          echo "\n❌ FAILED  : ${failedList.size()} domains"
+          failedList.each  { echo "   ✖ ${it}" }
+          echo "${'='*70}"
+
+          // Mark build unstable if any failures
+          if (failedList.size() > 0) {
+            currentBuild.result = 'UNSTABLE'
+            echo "\n⚠️ Build marked UNSTABLE — ${failedList.size()} domain(s) failed"
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "\n🎉 All domains rolled back successfully"
+    }
+    unstable {
+      echo "\n⚠️ Some domains failed — check summary above"
+    }
+    failure {
+      echo "\n❌ Pipeline failed — check console output"
+    }
+  }
+}
