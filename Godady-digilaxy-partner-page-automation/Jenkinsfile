@@ -1,0 +1,121 @@
+pipeline {
+  agent any
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+  }
+
+  stages {
+
+    // ── 1. Checkout ──────────────────────────────────────────────────────────
+    stage('Checkout') {
+      steps {
+        git branch: 'main',
+            url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git',
+            credentialsId: 'github-access'
+      }
+    }
+
+    // ── 2. Setup ─────────────────────────────────────────────────────────────
+    stage('Setup') {
+      steps {
+        script {
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "   DIGILAXY PARTNER CARD REMOVAL PIPELINE"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          // Install dependencies
+          sh """
+            pip install beautifulsoup4 --quiet --break-system-packages || \
+            pip install beautifulsoup4 --quiet
+          """
+          echo "✅ Dependencies ready"
+
+          // Show target domains
+          def domains = sh(
+            script: "python3 -c \"import json; data=json.load(open('data/domains.json')); [print(d) for d in data]\"",
+            returnStdout: true
+          ).trim()
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📋 TARGET DOMAINS (from domains.json):"
+          domains.split("\n").each { d ->
+            echo "   • ${d}"
+          }
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        }
+      }
+    }
+
+    // ── 3. Remove Partner Cards ───────────────────────────────────────────────
+    stage('Remove Partner Cards') {
+      steps {
+        script {
+          def ftpHost    = "all.digilaxy.pk.63u.9b4.mytemp.website"
+          def ftpUsername = "all@digilaxy.pk"
+          def credId     = "ftp-digilaxy"
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔌 FTP CONNECTION"
+          echo "   Host       : ${ftpHost}"
+          echo "   Username   : ${ftpUsername}"
+          echo "   Credential : ${credId}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          withCredentials([
+            usernamePassword(
+              credentialsId: credId,
+              usernameVariable: 'FTP_USER_CRED',
+              passwordVariable: 'FTP_PASS'
+            )
+          ]) {
+            def exitCode = sh(
+              script: """
+                export FTP_HOST='${ftpHost}'
+                export FTP_USER='${ftpUsername}'
+                export FTP_PASS=\$FTP_PASS
+                python3 scripts/sftp_modify_inject.py
+                echo "EXIT_CODE=\$?" >> pipeline_result.txt
+              """,
+              returnStatus: true
+            )
+
+            if (exitCode != 0) {
+              currentBuild.result = 'UNSTABLE'
+              echo "⚠️  Script completed with failures — see report above"
+            } else {
+              echo "✅ Script completed successfully"
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // ── Post Actions ─────────────────────────────────────────────────────────
+  post {
+    success {
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "🎉 PIPELINE RESULT : SUCCESS"
+      echo "   All matched domains processed successfully."
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    }
+    unstable {
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "⚠️  PIPELINE RESULT : UNSTABLE"
+      echo "   Some domains failed — check the FULL PIPELINE REPORT above."
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    }
+    failure {
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "❌ PIPELINE RESULT : FAILED"
+      echo "   Pipeline could not complete — check logs above."
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    }
+    always {
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "📋 Build #${env.BUILD_NUMBER} completed at ${new Date()}"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    }
+  }
+}
