@@ -9,6 +9,7 @@ pipeline {
 
     stage('Checkout') {
       steps {
+        cleanWs()
         git branch: 'main',
             url: 'https://github.com/Ayzazkhan/Godady-digilaxy-partner-page-automation.git',
             credentialsId: 'github-access'
