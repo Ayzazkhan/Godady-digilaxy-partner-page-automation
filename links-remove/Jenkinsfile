@@ -20,7 +20,7 @@ pipeline {
       steps {
         script {
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "   DIGILAXY PARTNER CARD REMOVAL PIPELINE"
+          echo "   PARTNER CARD REMOVAL PIPELINE"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
           sh """
@@ -34,7 +34,7 @@ pipeline {
             returnStdout: true
           ).trim()
 
-          echo "📋 TARGET DOMAINS (domains.json):"
+          echo "📋 TARGET DOMAINS (cards to remove):"
           domains.split("\n").each { d -> echo "   • ${d}" }
 
           def alldomains = sh(
@@ -42,7 +42,7 @@ pipeline {
             returnStdout: true
           ).trim()
 
-          echo "🌐 SERVER DOMAINS (alldomains.json):"
+          echo "🌐 SERVER SITES (will be scanned):"
           alldomains.split("\n").each { d -> echo "   • ${d}" }
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         }
@@ -52,14 +52,15 @@ pipeline {
     stage('Remove Partner Cards') {
       steps {
         script {
-          def ftpHost     = "63u.9b4.mytemp.website"
-          def ftpUsername = "all@63u.9b4.mytemp.website"
-          def credId      = "ftp-digilaxy"
+          def ftpHost     = "studentconsultancy.co.uk"
+          def ftpUsername = "studentconsultancy@studentconsultancy.co.uk"
+          def credId      = "ftp-studentconsultancy"
 
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "🔌 FTP CONNECTION"
           echo "   Host       : ${ftpHost}"
           echo "   Username   : ${ftpUsername}"
+          echo "   Credential : ${credId}"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
           withCredentials([
