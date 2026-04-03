@@ -5,9 +5,9 @@ import io
 from ftplib import FTP
 from bs4 import BeautifulSoup
 
-# ── Paths ──────────────────────────────────────────────────────────────────────
-DOMAINS_FILE    = "data/domains.json"     # LOCAL - jin cards hatane hain
-ALLDOMAINS_FILE = "data/alldomains.json"  # LOCAL - server pe jo domains hain
+# ── Paths - dono LOCAL ─────────────────────────────────────────────────────────
+DOMAINS_FILE    = "data/domains.json"     # jin cards hatane hain
+ALLDOMAINS_FILE = "data/alldomains.json"  # server pe jo domains hain
 PARTNER_FOLDERS = ["partners", "partners-1"]
 
 report = {
@@ -132,7 +132,7 @@ def print_full_report():
     for d in report["server_domains"]:
         print(f"      * {d}")
 
-    print(f"\n[3] MATCHED (processed) -- {len(report['matched_domains'])}")
+    print(f"\n[3] MATCHED -- {len(report['matched_domains'])}")
     for d in report["matched_domains"]:
         print(f"      OK  {d}")
 
@@ -214,35 +214,40 @@ def main():
         print(f"   FTP_PASS : {'***' if ftp_pass else 'None'}")
         exit(1)
 
-    # ── Load domains.json LOCAL ────────────────────────────────────────────────
-    with open(DOMAINS_FILE, "r", encoding="utf-8") as f:
-        target_domains = json.load(f)
-
-    if not isinstance(target_domains, list) or len(target_domains) == 0:
-        print(f"FAILED {DOMAINS_FILE} must be a non-empty JSON array")
-        exit(1)
-
-    report["target_domains"] = target_domains
-
-    # ── Load alldomains.json LOCAL ─────────────────────────────────────────────
-    with open(ALLDOMAINS_FILE, "r", encoding="utf-8") as f:
-        all_domains = json.load(f)
-
-    if not isinstance(all_domains, list) or len(all_domains) == 0:
-        print(f"FAILED {ALLDOMAINS_FILE} must be a non-empty JSON array")
-        exit(1)
-
-    report["server_domains"] = all_domains
-
+    # ── Load LOCAL files ───────────────────────────────────────────────────────
     print("=" * 65)
     print(f"{'DIGILAXY PARTNER CARD REMOVAL PIPELINE':^65}")
     print("=" * 65)
-    print(f"\n  Target domains  : {len(target_domains)}")
+
+    with open(DOMAINS_FILE, "r", encoding="utf-8") as f:
+        target_domains = json.load(f)
+    report["target_domains"] = target_domains
+    print(f"\n  Target domains loaded  : {len(target_domains)}")
     for d in target_domains:
         print(f"    * {d}")
-    print(f"\n  Server domains  : {len(all_domains)}")
+
+    with open(ALLDOMAINS_FILE, "r", encoding="utf-8") as f:
+        all_domains = json.load(f)
+    report["server_domains"] = all_domains
+    print(f"\n  Server domains loaded  : {len(all_domains)}")
     for d in all_domains:
         print(f"    * {d}")
+
+    # ── FTP Connect ────────────────────────────────────────────────────────────
+    print(f"\n{'='*65}")
+    print(f"  Connecting to FTP")
+    print(f"  Host : {ftp_host}")
+    print(f"  User : {ftp_user}")
+    print(f"{'='*65}")
+
+    try:
+        ftp = FTP(ftp_host, timeout=30)
+        ftp.login(ftp_user, ftp_pass)
+        print(f"  OK FTP LOGIN SUCCESSFUL")
+        print(f"  Root directory : {ftp.pwd()}")
+    except Exception as e:
+        print(f"  FAILED FTP connection: {e}")
+        exit(1)
 
     # ── Compare ────────────────────────────────────────────────────────────────
     matched       = [d for d in target_domains if d in all_domains]
@@ -255,34 +260,19 @@ def main():
     print(f"  Not on server: {len(not_on_server)}")
 
     if not_on_server:
-        print(f"\n  WARNING - These will be skipped (not on server):")
+        print(f"\n  WARNING - These will be skipped:")
         for d in not_on_server:
             print(f"    SKIP {d}")
 
     if not matched:
         print("\n  INFO No matching domains - nothing to process.")
+        ftp.quit()
         print_full_report()
         exit(0)
 
     print(f"\n  Domains to process:")
     for d in matched:
         print(f"    -> {d}")
-
-    # ── FTP Connect ────────────────────────────────────────────────────────────
-    print(f"\n{'='*65}")
-    print(f"  Connecting to FTP")
-    print(f"  Host : {ftp_host}")
-    print(f"  User : {ftp_user}")
-    print(f"{'='*65}")
-
-    try:
-        ftp = FTP(ftp_host, timeout=30)
-        ftp.login(ftp_user, ftp_pass)
-        print(f"  OK FTP login successful")
-        print(f"  Root directory : {ftp.pwd()}")
-    except Exception as e:
-        print(f"  FAILED FTP connection: {e}")
-        exit(1)
 
     # ── Process each matched domain ────────────────────────────────────────────
     for domain in matched:
