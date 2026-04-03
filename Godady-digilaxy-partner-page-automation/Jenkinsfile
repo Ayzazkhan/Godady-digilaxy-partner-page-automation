@@ -51,8 +51,8 @@ pipeline {
     stage('Remove Partner Cards') {
       steps {
         script {
-          def ftpHost    = "all.digilaxy.pk.63u.9b4.mytemp.website"
-          def ftpUsername = "all@digilaxy.pk"
+          def ftpHost    = "63u.9b4.mytemp.website"
+          def ftpUsername = "all@63u.9b4.mytemp.website"
           def credId     = "ftp-digilaxy"
 
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
