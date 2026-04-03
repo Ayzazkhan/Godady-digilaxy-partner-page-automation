@@ -7,7 +7,6 @@ pipeline {
 
   stages {
 
-    // ── 1. Checkout ──────────────────────────────────────────────────────────
     stage('Checkout') {
       steps {
         git branch: 'main',
@@ -16,37 +15,7 @@ pipeline {
       }
     }
 
-    // ── 2. Setup ─────────────────────────────────────────────────────────────
-    stage('Setup') {
-      steps {
-        script {
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "   DIGILAXY PARTNER CARD REMOVAL PIPELINE"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-          sh """
-            pip install beautifulsoup4 --quiet --break-system-packages || \
-            pip install beautifulsoup4 --quiet
-          """
-          echo "✅ Dependencies ready"
-
-          def domains = sh(
-            script: "python3 -c \"import json; data=json.load(open('data/domains.json')); [print(d) for d in data]\"",
-            returnStdout: true
-          ).trim()
-
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "📋 TARGET DOMAINS (from domains.json):"
-          domains.split("\n").each { d ->
-            echo "   • ${d}"
-          }
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        }
-      }
-    }
-
-    // ── 3. Remove Partner Cards ───────────────────────────────────────────────
-    stage('Remove Partner Cards') {
+    stage('FTP Login Test') {
       steps {
         script {
           def ftpHost     = "63u.9b4.mytemp.website"
@@ -54,10 +23,9 @@ pipeline {
           def credId      = "ftp-digilaxy"
 
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "🔌 FTP CONNECTION"
+          echo "🔌 FTP LOGIN TEST"
           echo "   Host       : ${ftpHost}"
           echo "   Username   : ${ftpUsername}"
-          echo "   Credential : ${credId}"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
           withCredentials([
@@ -67,52 +35,45 @@ pipeline {
               passwordVariable: 'FTP_PASS'
             )
           ]) {
-            def exitCode = sh(
-              script: """
-                export FTP_HOST='${ftpHost}'
-                export FTP_USER='${ftpUsername}'
-                export FTP_PASS=\$FTP_PASS
-                python3 scripts/sftp_modify_inject.py
-              """,
-              returnStatus: true
-            )
+            sh """
+              python3 - << 'PYEOF'
+import os
+from ftplib import FTP
 
-            if (exitCode != 0) {
-              currentBuild.result = 'UNSTABLE'
-              echo "⚠️  Script completed with failures — see report above"
-            } else {
-              echo "✅ Script completed successfully"
-            }
+ftp_host = "${ftpHost}"
+ftp_user = "${ftpUsername}"
+ftp_pass = os.environ.get("FTP_PASS")
+
+print("=" * 50)
+print("FTP LOGIN TEST")
+print("=" * 50)
+print(f"Host : {ftp_host}")
+print(f"User : {ftp_user}")
+print(f"Pass : {'***' if ftp_pass else 'MISSING'}")
+
+try:
+    ftp = FTP(ftp_host, timeout=30)
+    ftp.login(ftp_user, ftp_pass)
+    print("\\n✅ FTP LOGIN SUCCESSFUL!")
+    print(f"   Root directory : {ftp.pwd()}")
+    print("\\n   Folders on server:")
+    for item in ftp.nlst():
+        print(f"   - {item}")
+    ftp.quit()
+    print("\\n✅ FTP connection closed")
+except Exception as e:
+    print(f"\\n❌ FTP LOGIN FAILED: {e}")
+    exit(1)
+PYEOF
+            """
           }
         }
       }
     }
   }
 
-  // ── Post Actions ──────────────────────────────────────────────────────────
   post {
-    success {
-      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-      echo "🎉 PIPELINE RESULT : SUCCESS"
-      echo "   All matched domains processed successfully."
-      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    }
-    unstable {
-      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-      echo "⚠️  PIPELINE RESULT : UNSTABLE"
-      echo "   Some domains failed — check the FULL PIPELINE REPORT above."
-      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    }
-    failure {
-      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-      echo "❌ PIPELINE RESULT : FAILED"
-      echo "   Pipeline could not complete — check logs above."
-      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    }
-    always {
-      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-      echo "📋 Build #${env.BUILD_NUMBER} completed at ${new Date()}"
-      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    }
+    success { echo "✅ FTP Login test PASSED" }
+    failure { echo "❌ FTP Login test FAILED" }
   }
 }
