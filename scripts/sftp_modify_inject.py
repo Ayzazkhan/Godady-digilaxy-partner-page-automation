@@ -5,16 +5,14 @@ import io
 from ftplib import FTP
 from bs4 import BeautifulSoup
 
-# ── Paths - dono LOCAL ─────────────────────────────────────────────────────────
+# ── Paths ──────────────────────────────────────────────────────────────────────
 DOMAINS_FILE    = "data/domains.json"     # jin cards hatane hain
-ALLDOMAINS_FILE = "data/alldomains.json"  # server pe jo domains hain
+ALLDOMAINS_FILE = "data/alldomains.json"  # server pe jo site folders hain
 PARTNER_FOLDERS = ["partners", "partners-1"]
 
 report = {
     "target_domains"  : [],
-    "server_domains"  : [],
-    "matched_domains" : [],
-    "not_on_server"   : [],
+    "server_sites"    : [],
     "results"         : {}
 }
 
@@ -32,6 +30,9 @@ def ftp_write_file(ftp, remote_path, content_str):
 
 
 def remove_cards_for_domains(html_content, target_domains):
+    """
+    Remove cards whose any anchor href contains any of the target domains.
+    """
     soup         = BeautifulSoup(html_content, "html.parser")
     removed      = 0
     card_details = []
@@ -56,9 +57,10 @@ def remove_cards_for_domains(html_content, target_domains):
     return str(soup), removed, card_details
 
 
-def process_partner_folder(ftp, domain, folder_name, target_domains):
-    index_path    = f"{domain}/{folder_name}/index.html"
-    rollback_path = f"{domain}/{folder_name}/rollback.html"
+def process_partner_folder(ftp, site, folder_name, target_domains):
+    """Process one partner folder inside a site."""
+    index_path    = f"{site}/{folder_name}/index.html"
+    rollback_path = f"{site}/{folder_name}/rollback.html"
 
     result = {
         "status"        : "FAILED",
@@ -76,8 +78,8 @@ def process_partner_folder(ftp, domain, folder_name, target_domains):
         print(f"         OK Downloaded ({len(html)} bytes)")
     except Exception as e:
         result["error"]  = f"Download failed: {e}"
-        result["status"] = "FAILED"
-        print(f"         FAILED Download: {e}")
+        result["status"] = "NOT FOUND"
+        print(f"         NOT FOUND: {e}")
         return result
 
     # 2. Backup
@@ -124,39 +126,28 @@ def print_full_report():
     print(f"{'FULL PIPELINE REPORT':^65}")
     print(f"{sep}\n")
 
-    print(f"[1] TARGET DOMAINS (domains.json) -- Total: {len(report['target_domains'])}")
+    print(f"[1] TARGET DOMAINS (cards to remove) -- Total: {len(report['target_domains'])}")
     for d in report["target_domains"]:
         print(f"      * {d}")
 
-    print(f"\n[2] SERVER DOMAINS (alldomains.json) -- Total: {len(report['server_domains'])}")
-    for d in report["server_domains"]:
+    print(f"\n[2] SERVER SITES (folders processed) -- Total: {len(report['server_sites'])}")
+    for d in report["server_sites"]:
         print(f"      * {d}")
 
-    print(f"\n[3] MATCHED -- {len(report['matched_domains'])}")
-    for d in report["matched_domains"]:
-        print(f"      OK  {d}")
-
-    print(f"\n[4] NOT ON SERVER (skipped) -- {len(report['not_on_server'])}")
-    if report["not_on_server"]:
-        for d in report["not_on_server"]:
-            print(f"      SKIP  {d}")
-    else:
-        print(f"      (none)")
-
     print(f"\n{sep}")
-    print(f"{'DOMAIN-WISE PROCESSING DETAILS':^65}")
+    print(f"{'SITE-WISE PROCESSING DETAILS':^65}")
     print(f"{sep}")
 
     overall_success     = 0
     overall_failed      = 0
     total_cards_removed = 0
 
-    for domain, folders in report["results"].items():
+    for site, folders in report["results"].items():
         statuses  = [v["status"] for v in folders.values()]
-        domain_ok = all(s in ("SUCCESS", "NO_CARDS_MATCHED") for s in statuses)
+        site_ok   = all(s in ("SUCCESS", "NO_CARDS_MATCHED", "NOT FOUND") for s in statuses)
 
-        icon = "SUCCESS" if domain_ok else "FAILED"
-        print(f"\n  [{icon}] DOMAIN : {domain}")
+        icon = "SUCCESS" if site_ok else "FAILED"
+        print(f"\n  [{icon}] SITE : {site}")
         print(f"  {sep2}")
 
         for folder, res in folders.items():
@@ -165,10 +156,12 @@ def print_full_report():
                 status_str = "SUCCESS"
             elif s == "NO_CARDS_MATCHED":
                 status_str = "NO CARDS MATCHED"
+            elif s == "NOT FOUND":
+                status_str = "FOLDER NOT FOUND"
             else:
                 status_str = f"FAILED - {s}"
 
-            backup_str = "CREATED" if res["backup"] == "CREATED" else f"FAILED: {res['backup']}"
+            backup_str = "CREATED" if res["backup"] == "CREATED" else f"{res['backup']}"
 
             print(f"\n    {folder}/index.html")
             print(f"        Status        : {status_str}")
@@ -183,7 +176,7 @@ def print_full_report():
             if res["error"]:
                 print(f"        Error         : {res['error']}")
 
-        if domain_ok:
+        if site_ok:
             overall_success += 1
         else:
             overall_failed += 1
@@ -191,12 +184,11 @@ def print_full_report():
     print(f"\n{sep}")
     print(f"{'FINAL SUMMARY':^65}")
     print(f"{sep}")
-    print(f"  Target Domains       : {len(report['target_domains'])}")
-    print(f"  Found on Server      : {len(report['matched_domains'])}")
-    print(f"  Not on Server        : {len(report['not_on_server'])}")
-    print(f"  Domains OK           : {overall_success}")
-    print(f"  Domains Failed       : {overall_failed}")
-    print(f"  Total Cards Removed  : {total_cards_removed}")
+    print(f"  Target Domains (cards)   : {len(report['target_domains'])}")
+    print(f"  Sites Processed          : {len(report['server_sites'])}")
+    print(f"  Sites OK                 : {overall_success}")
+    print(f"  Sites Failed             : {overall_failed}")
+    print(f"  Total Cards Removed      : {total_cards_removed}")
     print(f"{sep}\n")
 
     return overall_failed == 0
@@ -214,26 +206,27 @@ def main():
         print(f"   FTP_PASS : {'***' if ftp_pass else 'None'}")
         exit(1)
 
-    # ── Load LOCAL files ───────────────────────────────────────────────────────
     print("=" * 65)
     print(f"{'DIGILAXY PARTNER CARD REMOVAL PIPELINE':^65}")
     print("=" * 65)
 
+    # ── Load domains.json (LOCAL) ─────────────────────────────────────────────
     with open(DOMAINS_FILE, "r", encoding="utf-8") as f:
         target_domains = json.load(f)
     report["target_domains"] = target_domains
-    print(f"\n  Target domains loaded  : {len(target_domains)}")
+    print(f"\n  Cards to remove from  : {len(target_domains)} domain(s)")
     for d in target_domains:
         print(f"    * {d}")
 
+    # ── Load alldomains.json (LOCAL) ──────────────────────────────────────────
     with open(ALLDOMAINS_FILE, "r", encoding="utf-8") as f:
-        all_domains = json.load(f)
-    report["server_domains"] = all_domains
-    print(f"\n  Server domains loaded  : {len(all_domains)}")
-    for d in all_domains:
+        server_sites = json.load(f)
+    report["server_sites"] = server_sites
+    print(f"\n  Server sites to scan  : {len(server_sites)}")
+    for d in server_sites:
         print(f"    * {d}")
 
-    # ── FTP Connect ────────────────────────────────────────────────────────────
+    # ── FTP Connect ───────────────────────────────────────────────────────────
     print(f"\n{'='*65}")
     print(f"  Connecting to FTP")
     print(f"  Host : {ftp_host}")
@@ -249,41 +242,16 @@ def main():
         print(f"  FAILED FTP connection: {e}")
         exit(1)
 
-    # ── Compare ────────────────────────────────────────────────────────────────
-    matched       = [d for d in target_domains if d in all_domains]
-    not_on_server = [d for d in target_domains if d not in all_domains]
-
-    report["matched_domains"] = matched
-    report["not_on_server"]   = not_on_server
-
-    print(f"\n  Matched      : {len(matched)}")
-    print(f"  Not on server: {len(not_on_server)}")
-
-    if not_on_server:
-        print(f"\n  WARNING - These will be skipped:")
-        for d in not_on_server:
-            print(f"    SKIP {d}")
-
-    if not matched:
-        print("\n  INFO No matching domains - nothing to process.")
-        ftp.quit()
-        print_full_report()
-        exit(0)
-
-    print(f"\n  Domains to process:")
-    for d in matched:
-        print(f"    -> {d}")
-
-    # ── Process each matched domain ────────────────────────────────────────────
-    for domain in matched:
+    # ── Process each server site ──────────────────────────────────────────────
+    for site in server_sites:
         print(f"\n{'='*65}")
-        print(f"  PROCESSING : {domain}")
+        print(f"  SCANNING SITE : {site}")
         print(f"{'='*65}")
-        report["results"][domain] = {}
+        report["results"][site] = {}
 
         for folder in PARTNER_FOLDERS:
-            res = process_partner_folder(ftp, domain, folder, target_domains)
-            report["results"][domain][folder] = res
+            res = process_partner_folder(ftp, site, folder, target_domains)
+            report["results"][site][folder] = res
 
     ftp.quit()
     print(f"\n  OK FTP connection closed")
