@@ -52,7 +52,7 @@ pipeline {
     stage('Remove Partner Cards') {
       steps {
         script {
-          def ftpHost     = "studentconsultancy.co.uk"
+          def ftpHost = "ftp.studentconsultancy.co.uk"
           def ftpUsername = "studentconsultancy@studentconsultancy.co.uk"
           def credId      = "ftp-studentconsultancy"
 
