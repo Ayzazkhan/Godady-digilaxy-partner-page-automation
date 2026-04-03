@@ -24,19 +24,14 @@ pipeline {
           echo "   DIGILAXY PARTNER CARD REMOVAL PIPELINE"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-          // Install dependencies
           sh """
             pip install beautifulsoup4 --quiet --break-system-packages || \
             pip install beautifulsoup4 --quiet
           """
           echo "✅ Dependencies ready"
 
-          // Show target domains — correct folder se padhna
           def domains = sh(
-            script: """
-              cd Godady-digilaxy-partner-page-automation
-              python3 -c "import json; data=json.load(open('data/domains.json')); [print(d) for d in data]"
-            """,
+            script: "python3 -c \"import json; data=json.load(open('data/domains.json')); [print(d) for d in data]\"",
             returnStdout: true
           ).trim()
 
@@ -74,7 +69,6 @@ pipeline {
           ]) {
             def exitCode = sh(
               script: """
-                cd Godady-digilaxy-partner-page-automation
                 export FTP_HOST='${ftpHost}'
                 export FTP_USER='${ftpUsername}'
                 export FTP_PASS=\$FTP_PASS
