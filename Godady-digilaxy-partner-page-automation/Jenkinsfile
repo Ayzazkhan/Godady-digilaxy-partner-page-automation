@@ -31,9 +31,12 @@ pipeline {
           """
           echo "✅ Dependencies ready"
 
-          // Show target domains
+          // Show target domains — correct folder se padhna
           def domains = sh(
-            script: "python3 -c \"import json; data=json.load(open('data/domains.json')); [print(d) for d in data]\"",
+            script: """
+              cd Godady-digilaxy-partner-page-automation
+              python3 -c "import json; data=json.load(open('data/domains.json')); [print(d) for d in data]"
+            """,
             returnStdout: true
           ).trim()
 
@@ -51,9 +54,9 @@ pipeline {
     stage('Remove Partner Cards') {
       steps {
         script {
-          def ftpHost    = "63u.9b4.mytemp.website"
+          def ftpHost     = "63u.9b4.mytemp.website"
           def ftpUsername = "all@63u.9b4.mytemp.website"
-          def credId     = "ftp-digilaxy"
+          def credId      = "ftp-digilaxy"
 
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "🔌 FTP CONNECTION"
@@ -71,11 +74,11 @@ pipeline {
           ]) {
             def exitCode = sh(
               script: """
+                cd Godady-digilaxy-partner-page-automation
                 export FTP_HOST='${ftpHost}'
                 export FTP_USER='${ftpUsername}'
                 export FTP_PASS=\$FTP_PASS
                 python3 scripts/sftp_modify_inject.py
-                echo "EXIT_CODE=\$?" >> pipeline_result.txt
               """,
               returnStatus: true
             )
@@ -92,7 +95,7 @@ pipeline {
     }
   }
 
-  // ── Post Actions ─────────────────────────────────────────────────────────
+  // ── Post Actions ──────────────────────────────────────────────────────────
   post {
     success {
       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
