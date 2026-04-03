@@ -14,7 +14,7 @@ from bs4 import BeautifulSoup
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 DOMAINS_FILE      = "data/domains.json"
-ALLDOMAINS_REMOTE = "digilaxy-sites/alldomains.json"
+ALLDOMAINS_REMOTE = "data/alldomains.json"
 PARTNER_FOLDERS   = ["partners", "partners-1"]
 
 # ── Report collector ───────────────────────────────────────────────────────────
